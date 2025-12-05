@@ -12,11 +12,59 @@ import { toISOString } from './dateUtils';
  * Persists task changes to the database
  */
 export class DBObserver {
+    private tasksRef: any;
+
+    constructor(tasksRef?: any) {
+        this.tasksRef = tasksRef;
+    }
+
     async handleTaskUpdated(event: TaskEvent): Promise<void> {
-        const { task, updates } = event.payload;
+        const { task, updates: providedUpdates, changesAffectSchedule } = event.payload;
+
+        // Get current task from ref if available
+        const currentTask = this.tasksRef?.current?.find((t: any) => String(t.id) === String(task.id));
+        if (!currentTask) {
+            console.error('[DBObserver] Task not found:', task.id);
+            return;
+        }
+
+        // Merge current task with updates
+        let mergedTask = { ...currentTask, ...task };
+
+        // Calculate duration if start and/or end are provided
+        if (task.duration === undefined) {
+            if (task.start && task.end) {
+                const startDate = new Date(task.start);
+                const endDate = new Date(task.end);
+                const durationInMs = endDate.getTime() - startDate.getTime();
+                const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
+                mergedTask.duration = durationInDays;
+            } else if (task.end && currentTask.start_date) {
+                const startDate = new Date(currentTask.start_date);
+                const endDate = new Date(task.end);
+                const durationInMs = endDate.getTime() - startDate.getTime();
+                const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
+                mergedTask.duration = durationInDays;
+            }
+        }
+
+        // Prepare updates for database
+        const updates: any = {};
+        if (task.text !== undefined) updates.text = task.text;
+        if (task.start !== undefined) updates.start_date = toISOString(task.start);
+        if (task.start_date !== undefined) updates.start_date = mergedTask.start_date;
+        if (mergedTask.duration !== currentTask.duration) updates.duration = mergedTask.duration;
+        if (task.parent !== undefined) updates.parent_id = task.parent ? String(task.parent) : null;
+        if (task.progress !== undefined) updates.progress = mergedTask.progress;
+        if (task.type !== undefined) updates.type = task.type;
+        if (task.description !== undefined) updates.description = task.description;
+        if (task.constraint_type !== undefined) updates.constraint_type = task.constraint_type;
+        if (task.constraint_date !== undefined) {
+            updates.constraint_date = task.constraint_date ? toISOString(task.constraint_date) : null;
+        }
 
         // Skip DB update if there are no changes
-        if (!updates || Object.keys(updates).length === 0) {
+        if (Object.keys(updates).length === 0) {
             console.log('[DBObserver] No updates to save, skipping database operation');
             return;
         }

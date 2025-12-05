@@ -32,7 +32,7 @@ export function useGanttObservers({
         console.log('[useGanttObservers] Initializing observers...');
 
         // Create observer instances
-        const dbObserver = new DBObserver();
+        const dbObserver = new DBObserver(tasksRef);
         const uiObserver = new UIObserver(setTasks, setEditingTask, setLinks);
 
         // ScheduleObserver will call recalculateAffectedTasks directly

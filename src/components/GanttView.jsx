@@ -187,135 +187,18 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     // validateTask and normalizeTask are now imported from ganttUtils
 
     const handleTaskUpdate = async (task, skipRecalculation = false) => {
-        console.log('[handleTaskUpdate] Called with task:', task);
-
-        // Get the current task from state (use ref for latest state)
-        const currentTask = tasksRef.current.find(t => String(t.id) === String(task.id));
-        if (!currentTask) {
-            console.error('Task not found:', task.id);
-            return null;
-        }
-
-        console.log('[handleTaskUpdate] Current task found:', currentTask);
-
-        // Merge current task with updates
-        let mergedTask = { ...currentTask, ...task };
-
-        // Calculate duration if start and/or end are provided (from drag)
-        // BUT skip if duration is already explicitly set (from diff calculation)
-        if (task.duration === undefined) {
-            if (task.start && task.end) {
-                // Both start and end provided
-                const startDate = parseToUTC(task.start);
-                const endDate = parseToUTC(task.end);
-                const durationInMs = endDate - startDate;
-                const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
-                mergedTask.duration = durationInDays;
-                console.log(`Calculated duration from drag (both): ${durationInDays} days`);
-            } else if (task.end && currentTask.start_date) {
-                // Only end provided, use current start_date
-                const startDate = parseToUTC(currentTask.start_date);
-                const endDate = parseToUTC(task.end);
-                console.log('[handleTaskUpdate] End date calculation:', {
-                    currentStartDate: currentTask.start_date,
-                    taskEnd: task.end,
-                    startDate: startDate.toISOString(),
-                    endDate: endDate.toISOString()
-                });
-                const durationInMs = endDate - startDate;
-                const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
-                mergedTask.duration = durationInDays;
-                console.log(`Calculated duration from drag (end only): ${durationInDays} days (${durationInMs}ms)`);
-            } else if (task.start && currentTask.duration) {
-                // Only start provided, keep current duration
-                console.log(`Using existing duration: ${currentTask.duration} days`);
-            }
-        } else {
-            console.log(`Duration already set to ${task.duration}, skipping calculation`);
-        }
-
-        console.log('[handleTaskUpdate] Merged task:', mergedTask);
-
-        // Normalize and validate the merged task
-        mergedTask = normalizeTask(mergedTask);
-        try {
-            validateTask(mergedTask);
-        } catch (error) {
-            console.error('Task validation failed:', error);
-            return null;
-        }
-
-        console.log('[handleTaskUpdate] Task validated and normalized');
-
-        // Prepare updates for database (only changed fields)
-        const updates = {};
-        if (task.text !== undefined) updates.text = task.text;
-        if (task.start !== undefined) updates.start_date = toISOString(task.start);
-        if (task.start_date !== undefined) updates.start_date = mergedTask.start_date;
-
-        console.log('[handleTaskUpdate] Duration check:', {
-            mergedDuration: mergedTask.duration,
-            currentDuration: currentTask.duration,
-            areEqual: mergedTask.duration === currentTask.duration,
-            mergedType: typeof mergedTask.duration,
-            currentType: typeof currentTask.duration
-        });
-
-        if (mergedTask.duration !== currentTask.duration) {
-            updates.duration = mergedTask.duration;
-            console.log('[handleTaskUpdate] Duration changed, adding to updates');
-        }
-
-        if (task.parent !== undefined) updates.parent_id = task.parent ? String(task.parent) : null;
-        if (task.progress !== undefined) updates.progress = mergedTask.progress;
-        if (task.type !== undefined) updates.type = task.type;
-        if (task.description !== undefined) updates.description = task.description;
-        if (task.constraint_type !== undefined) updates.constraint_type = task.constraint_type;
-        if (task.constraint_date !== undefined) updates.constraint_date = task.constraint_date ? toISOString(task.constraint_date) : null;
-
-        console.log('[handleTaskUpdate] Updates prepared:', updates);
-
-        // Determine if changes affect schedule
-        const changesAffectSchedule = task.start !== undefined || task.duration !== undefined || task.start_date !== undefined;
-
-        // Check if there are any updates to save
-        if (Object.keys(updates).length === 0) {
-            console.log('[handleTaskUpdate] No changes to save to database, skipping DB update');
-
-            // Still emit event for UI update
-            console.log('[handleTaskUpdate] Emitting task:updated event for UI only');
-
-            await taskEventEmitter.emit('task:updated', {
-                task: mergedTask,
-                updates: {},
-                changesAffectSchedule
-            });
-
-            // Handle schedule recalculation if needed (skip if called from auto-scheduling)
-            if (changesAffectSchedule && !skipRecalculation) {
-                await recalculateAffectedTasks(task.id, mergedTask);
-            }
-
-            return mergedTask;
-        }
-
-        console.log('[handleTaskUpdate] Emitting task:updated event for:', task.id);
-
-        // Emit event - observers will handle DB save, UI update, and recalculation
+        // Simply emit event - Observer handles all logic
         await taskEventEmitter.emit('task:updated', {
-            task: mergedTask,
-            updates,
-            changesAffectSchedule
+            task,
+            changesAffectSchedule: task.start !== undefined || task.duration !== undefined || task.start_date !== undefined
         });
 
-        console.log('[handleTaskUpdate] Event emitted successfully');
-
-        // Handle schedule recalculation separately (not yet in observer)
-        if (changesAffectSchedule) {
-            await recalculateAffectedTasks(task.id, mergedTask);
+        // Handle schedule recalculation if needed
+        if (!skipRecalculation && (task.start !== undefined || task.duration !== undefined || task.start_date !== undefined)) {
+            await recalculateAffectedTasks(task.id, task);
         }
 
-        return mergedTask;
+        return task;
     };
 
     // Create recalculateAffectedTasks function using factory pattern
