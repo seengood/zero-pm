@@ -192,15 +192,16 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
 
     // Create recalculateAffectedTasks function using factory pattern
     // (Must be after handleTaskUpdate definition)
-    // Wrapped in useCallback to prevent Observer reinitialization
-    const recalculateAffectedTasks = useCallback(
-        createRecalculateFunction({
+    // Wrapped in useMemo to prevent Observer reinitialization
+    // Dependencies are refs, so they don't change
+    const recalculateAffectedTasks = React.useMemo(
+        () => createRecalculateFunction({
             tasksRef,
             linksRef,
             handleTaskUpdate,
             toISOString
         }),
-        [tasksRef, linksRef, handleTaskUpdate]
+        [] // Empty deps because tasksRef and linksRef are stable refs
     );
 
     // Initialize observers using custom hook
