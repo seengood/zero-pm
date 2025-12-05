@@ -35,6 +35,7 @@ import { DBObserver, UIObserver, ScheduleObserver } from "@/lib/taskObservers";
 import { validateTask, normalizeTask } from "@/lib/ganttUtils";
 import { createRecalculateFunction } from "@/lib/ganttScheduler";
 import { useGanttObservers } from "@/hooks/useGanttObservers";
+import { setupGanttIntercepts } from "@/lib/ganttIntercepts";
 
 // Helper function to convert Date objects to ISO strings for Supabase
 const toISOString = (value) => {
@@ -724,119 +725,10 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
                             scales={scales}
                             columns={columns}
                             init={(api) => {
-                                // Intercept resize-task action (triggered by resizing bars)
-                                api.intercept("resize-task", async (params) => {
-                                    console.log('[Gantt] Intercepted resize-task:', params);
-
-                                    const taskId = params.id;
-                                    const changes = params.task || {};
-                                    const diff = params.diff || 0;
-
-                                    console.log('[Gantt] Resize - Task ID:', taskId, 'Changes:', changes, 'Diff:', diff);
-
-                                    // Apply diff to duration
-                                    if (diff !== 0) {
-                                        const currentTask = tasks.find(t => String(t.id) === String(taskId));
-                                        if (currentTask) {
-                                            const newDuration = (currentTask.duration || 0) + diff;
-                                            console.log('[Gantt] Resize - Applying diff:', diff, 'Old duration:', currentTask.duration, 'New duration:', newDuration);
-                                            changes.duration = newDuration;
-                                        }
-                                    }
-
-                                    await handleTaskUpdate({ id: taskId, ...changes });
-                                    return params;
-                                });
-
-                                // Intercept update-task action (triggered by dragging bars)
-                                api.intercept("update-task", async (params) => {
-                                    console.log('[Gantt] Intercepted update-task:', params);
-
-                                    // params contains: { id, task (changes), diff }
-                                    // diff = number of days the task was moved/resized
-                                    const taskId = params.id;
-                                    const changes = params.task || {};
-                                    const diff = params.diff || 0;
-
-                                    console.log('[Gantt] Task ID:', taskId, 'Changes:', changes, 'Diff:', diff);
-
-                                    // If diff is present, it means duration changed by dragging
-                                    // Apply the diff to the current duration
-                                    if (diff !== 0) {
-                                        const currentTask = tasks.find(t => String(t.id) === String(taskId));
-                                        if (currentTask) {
-                                            const newDuration = (currentTask.duration || 0) + diff;
-                                            console.log('[Gantt] Applying diff:', diff, 'Old duration:', currentTask.duration, 'New duration:', newDuration);
-                                            changes.duration = newDuration;
-                                        }
-                                    }
-
-                                    // Call handleTaskUpdate with id and changes
-                                    await handleTaskUpdate({ id: taskId, ...changes });
-
-                                    return params;
-                                }); // Intercept add-link action to save to database
-                                // Intercept add-link action (triggered by UI link creation)
-                                api.intercept("add-link", async (params) => {
-                                    console.log('[Gantt] Intercepted add-link:', params);
-
-                                    const linkData = params.link || params;
-                                    const newLink = {
-                                        project_id: projectId,
-                                        source: String(linkData.source),
-                                        target: String(linkData.target),
-                                        type: linkData.type || 'e2s',
-                                        lag: linkData.lag || 0
-                                    };
-
-                                    // Emit link:created event (DB save + UI update + auto-schedule)
-                                    taskEventEmitter.emit('link:created', {
-                                        link: newLink
-                                    });
-
-                                    // Return params to allow Gantt to proceed
-                                    return params;
-                                });
-
-                                // Intercept update-link action (triggered by UI link modification)
-                                api.intercept("update-link", async (params) => {
-                                    console.log('[Gantt] Intercepted update-link:', params);
-
-                                    const linkId = params.id;
-                                    const updates = params.link || {};
-
-                                    // Find current link
-                                    const currentLink = links.find(l => String(l.id) === String(linkId));
-                                    if (currentLink) {
-                                        const updatedLink = { ...currentLink, ...updates };
-
-                                        // Emit link:updated event
-                                        taskEventEmitter.emit('link:updated', {
-                                            link: updatedLink,
-                                            updates
-                                        });
-                                    }
-
-                                    return params;
-                                });
-
-                                // Intercept delete-link action (triggered by UI link deletion)
-                                api.intercept("delete-link", async (params) => {
-                                    console.log('[Gantt] Intercepted delete-link:', params);
-
-                                    const linkId = params.id;
-
-                                    // Find the link before deletion for recalculation
-                                    const link = links.find(l => String(l.id) === String(linkId));
-
-                                    // Emit link:deleted event
-                                    taskEventEmitter.emit('link:deleted', {
-                                        linkId,
-                                        link
-                                    });
-
-                                    return params;
-                                });
+                                setupGanttIntercepts(api,
+                                    { handleTaskUpdate, taskEventEmitter },
+                                    { tasks, links, projectId }
+                                );
                             }}
                             onTaskCreate={handleTaskCreate}
                             onTaskUpdate={handleTaskUpdate}
