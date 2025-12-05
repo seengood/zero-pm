@@ -1,4 +1,5 @@
 export type UserRole = 'admin' | 'member' | 'observer';
+export type ConstraintType = 'asap' | 'alap' | 'mso' | 'mfo' | 'snet' | 'fnlt';
 
 export interface UserProfile {
     id: string;
@@ -33,13 +34,14 @@ export interface Task {
     project_id: string;
     parent_id: string | null;
     text: string;
+    description?: string;
     start_date: string;
     duration: number;
     progress: number;
     type: 'task' | 'milestone' | 'summary';
     sort_order: number | null;
-    constraint_type: string | null;
-    constraint_date: string | null;
+    constraint_type?: ConstraintType | null;
+    constraint_date?: string | null;
     early_start: string | null;
     early_finish: string | null;
     late_start: string | null;
@@ -57,4 +59,13 @@ export interface Link {
     type: 'e2s' | 's2s' | 'e2e' | 's2e';
     lag: number;
     project_id: string;
+}
+
+export interface Baseline {
+    id: string;
+    project_id: string;
+    name: string;
+    description: string | null;
+    data: any;
+    created_at: string;
 }

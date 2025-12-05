@@ -14,17 +14,18 @@ export function usePresence(projectId: string, currentTaskId?: string) {
     const [channel, setChannel] = useState<RealtimeChannel | null>(null);
     const [onlineUsers, setOnlineUsers] = useState<Record<string, PresenceState>>({});
 
+    // 채널 초기화
     useEffect(() => {
         if (!projectId) return;
 
+        let newChannel: RealtimeChannel | null = null;
+
         const initChannel = async () => {
-            // 현재 사용자 정보 가져오기
             const {
                 data: { user },
             } = await supabase.auth.getUser();
 
-            // Presence 채널 생성
-            const presenceChannel = supabase.channel(`project:${projectId}`, {
+            newChannel = supabase.channel(`project:${projectId}`, {
                 config: {
                     presence: {
                         key: user?.id || 'anonymous',
@@ -32,10 +33,9 @@ export function usePresence(projectId: string, currentTaskId?: string) {
                 },
             });
 
-            // Presence 상태 동기화
-            presenceChannel
+            newChannel
                 .on('presence', { event: 'sync' }, () => {
-                    const state = presenceChannel.presenceState();
+                    const state = newChannel!.presenceState();
                     const users: Record<string, PresenceState> = {};
 
                     Object.keys(state).forEach((key) => {
@@ -55,34 +55,45 @@ export function usePresence(projectId: string, currentTaskId?: string) {
                 })
                 .subscribe(async (status) => {
                     if (status === 'SUBSCRIBED') {
-                        const { data: profile } = await supabase
-                            .from('user_profiles')
-                            .select('display_name, avatar_url')
-                            .eq('id', user?.id)
-                            .single();
-
-                        // Presence 상태 추적
-                        await presenceChannel.track({
-                            userId: user?.id || 'anonymous',
-                            displayName: profile?.display_name || user?.email || 'Anonymous',
-                            avatarUrl: profile?.avatar_url,
-                            editingTaskId: currentTaskId,
-                            timestamp: Date.now(),
-                        });
+                        setChannel(newChannel);
                     }
                 });
-
-            setChannel(presenceChannel);
         };
 
         initChannel();
 
         return () => {
-            if (channel) {
-                channel.unsubscribe();
+            if (newChannel) {
+                newChannel.unsubscribe();
             }
         };
-    }, [projectId, currentTaskId, channel]);
+    }, [projectId]);
+
+    // Presence 상태 업데이트 (currentTaskId 변경 시)
+    useEffect(() => {
+        if (!channel || !projectId) return;
+
+        const updatePresence = async () => {
+            const {
+                data: { user },
+            } = await supabase.auth.getUser();
+            const { data: profile } = await supabase
+                .from('user_profiles')
+                .select('display_name, avatar_url')
+                .eq('id', user?.id)
+                .single();
+
+            await channel.track({
+                userId: user?.id || 'anonymous',
+                displayName: profile?.display_name || user?.email || 'Anonymous',
+                avatarUrl: profile?.avatar_url,
+                editingTaskId: currentTaskId,
+                timestamp: Date.now(),
+            });
+        };
+
+        updatePresence();
+    }, [channel, currentTaskId, projectId]);
 
     // Task 편집 상태 업데이트
     const updateEditingTask = useCallback(

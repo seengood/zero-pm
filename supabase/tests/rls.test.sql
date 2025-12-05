@@ -1,5 +1,6 @@
 BEGIN;
-SELECT plan(10);
+\ir common/helpers.psql
+SELECT plan(6);
 
 -- Create test users
 SELECT tests.create_supabase_user('user1');

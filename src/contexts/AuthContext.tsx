@@ -14,6 +14,7 @@ interface AuthContextType {
     signIn: (email: string, password: string) => Promise<{ error: AuthError | null }>;
     signOut: () => Promise<{ error: AuthError | null }>;
     resetPassword: (email: string) => Promise<{ error: AuthError | null }>;
+    updatePassword: (password: string) => Promise<{ error: AuthError | null }>;
     updateProfile: (updates: Partial<UserProfile>) => Promise<{ error: Error | null }>;
 }
 
@@ -104,6 +105,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 data: {
                     display_name: displayName,
                 },
+                // Skip email confirmation in local development
+                emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : undefined,
             },
         });
 
@@ -134,7 +137,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const resetPassword = async (email: string) => {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: `${window.location.origin}/reset-password/confirm`,
+            redirectTo: `${window.location.origin}/auth/callback?next=/reset-password/confirm`,
+        });
+        return { error };
+    };
+
+    const updatePassword = async (password: string) => {
+        const { error } = await supabase.auth.updateUser({
+            password: password,
         });
         return { error };
     };
@@ -173,6 +183,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signIn,
         signOut,
         resetPassword,
+        updatePassword,
         updateProfile,
     };
 

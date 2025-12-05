@@ -1,0 +1,62 @@
+/* Custom Gantt Chart Overrides */
+
+/* Selected task row highlight in the left grid */
+.wx-table .wx-grid .wx-row.wx-selected {
+    background-color: var(--wx-gantt-select-color) !important;
+}
+
+.wx-table .wx-grid .wx-row.wx-selected .wx-cell {
+    background-color: var(--wx-gantt-select-color) !important;
+}
+
+/* Header borders and center alignment */
+.wx-table .wx-grid .wx-header .wx-cell {
+    text-align: center !important;
+    justify-content: center !important;
+    border: 1px solid var(--wx-gantt-border-color) !important;
+}
+
+/* Keep first column (Task Name) left-aligned */
+.wx-table .wx-grid .wx-header .wx-cell:first-child {
+    text-align: left !important;
+    justify-content: flex-start !important;
+}
+
+/* Body cell borders */
+.wx-table .wx-grid .wx-body .wx-cell {
+    border-right: 1px solid var(--wx-gantt-border-color) !important;
+    border-left: 1px solid var(--wx-gantt-border-color) !important;
+}
+
+/* Gantt chart timescale (right side) borders */
+.wx-scale .wx-cell {
+    border: 1px solid var(--wx-gantt-border-color) !important;
+}
+
+/* Reserve space for scrollbar in the padding area */
+.wx-table-container,
+.wx-chart {
+    scrollbar-gutter: stable;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+/* Ensure the scrollbar doesn't overlay content */
+.wx-gantt {
+    overflow-y: scroll;
+    scrollbar-gutter: stable;
+}
+
+/* Center align the + button in add-col */
+.add-task-btn {
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    width: 100% !important;
+    height: 100% !important;
+}
+
+/* Add bottom border to body cells to complete the grid */
+.wx-table .wx-grid .wx-body .wx-cell {
+    border-bottom: 1px solid var(--wx-gantt-border-color) !important;
+}

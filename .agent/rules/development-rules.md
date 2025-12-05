@@ -17,6 +17,7 @@ rules:
       - "컴포넌트는 함수형 컴포넌트와 Hooks 패턴을 사용합니다."
       - "파일 및 폴더명은 `kebab-case` 또는 `PascalCase` 등 프로젝트 규칙을 따릅니다."
 
+
   # 2. CSS 및 스타일 관리 (CSS & Styling)
   - name: "CSS & Styling Management"
     glob: "**/*.{css,scss,tsx,jsx}"

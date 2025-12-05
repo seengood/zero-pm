@@ -1,0 +1,141 @@
+
+CREATE SCHEMA IF NOT EXISTS tests;
+
+-- Function to get a user ID by email (or identifier)
+CREATE OR REPLACE FUNCTION tests.get_supabase_uid(identifier text)
+RETURNS uuid AS $$
+DECLARE
+  email_val text := identifier || '@example.com';
+  user_id uuid;
+BEGIN
+  SELECT id INTO user_id FROM auth.users WHERE email = email_val;
+  RETURN user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to create a user in auth.users
+CREATE OR REPLACE FUNCTION tests.create_supabase_user(identifier text)
+RETURNS uuid AS $$
+DECLARE
+  user_id uuid;
+  email_val text := identifier || '@example.com';
+BEGIN
+  -- Check if user exists
+  SELECT id INTO user_id FROM auth.users WHERE email = email_val;
+  
+  IF user_id IS NULL THEN
+    user_id := gen_random_uuid();
+    
+    INSERT INTO auth.users (
+      instance_id,
+      id,
+      aud,
+      role,
+      email,
+      encrypted_password,
+      email_confirmed_at,
+      recovery_sent_at,
+      last_sign_in_at,
+      raw_app_meta_data,
+      raw_user_meta_data,
+      created_at,
+      updated_at,
+      confirmation_token,
+      email_change,
+      email_change_token_new,
+      recovery_token
+    ) VALUES (
+      '00000000-0000-0000-0000-000000000000',
+      user_id,
+      'authenticated',
+      'authenticated',
+      email_val,
+      crypt('password123', gen_salt('bf')),
+      NOW(),
+      NOW(),
+      NOW(),
+      '{"provider":"email","providers":["email"]}',
+      '{}',
+      NOW(),
+      NOW(),
+      '',
+      '',
+      '',
+      ''
+    );
+    
+    -- Insert identity
+    INSERT INTO auth.identities (
+      id,
+      user_id,
+      identity_data,
+      provider,
+      provider_id,
+      last_sign_in_at,
+      created_at,
+      updated_at
+    ) VALUES (
+      gen_random_uuid(),
+      user_id,
+      format('{"sub":"%s","email":"%s"}', user_id::text, email_val)::jsonb,
+      'email',
+      email_val, -- provider_id
+      NOW(),
+      NOW(),
+      NOW()
+    );
+  END IF;
+  
+  RETURN user_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Helper to get claims (SECURITY DEFINER to read auth.users)
+CREATE OR REPLACE FUNCTION tests.get_user_claims(user_id uuid, identifier text)
+RETURNS text AS $$
+DECLARE
+  claims text;
+BEGIN
+  SELECT json_build_object(
+    'sub', user_id,
+    'role', 'authenticated',
+    'email', identifier || '@example.com',
+    'app_metadata', raw_app_meta_data
+  )::text INTO claims
+  FROM auth.users WHERE id = user_id;
+  RETURN claims;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function to authenticate as a user (NOT SECURITY DEFINER)
+CREATE OR REPLACE FUNCTION tests.authenticate_as(identifier text)
+RETURNS void AS $$
+DECLARE
+  user_id uuid;
+  claims text;
+BEGIN
+  user_id := tests.get_supabase_uid(identifier);
+  
+  IF user_id IS NULL THEN
+    RAISE EXCEPTION 'User % not found', identifier;
+  END IF;
+
+  claims := tests.get_user_claims(user_id, identifier);
+
+  PERFORM set_config('role', 'authenticated', true);
+  PERFORM set_config('request.jwt.claims', claims, true);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to clear authentication
+CREATE OR REPLACE FUNCTION tests.clear_authentication()
+RETURNS void AS $$
+BEGIN
+  PERFORM set_config('role', 'postgres', true);
+  PERFORM set_config('request.jwt.claims', NULL, true);
+END;
+$$ LANGUAGE plpgsql;
+
+-- Grant permissions
+GRANT USAGE ON SCHEMA tests TO anon, authenticated, service_role;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA tests TO anon, authenticated, service_role;
