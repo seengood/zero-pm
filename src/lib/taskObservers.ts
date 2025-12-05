@@ -6,6 +6,7 @@
 import { TaskEvent } from './taskEventEmitter';
 import { updateTask, createTask, deleteTask, createLink, updateLink, deleteLink } from './tasks';
 import { toISOString } from './dateUtils';
+import { calculateTaskDuration } from './taskUpdateUtils';
 
 /**
  * Database Observer
@@ -31,21 +32,10 @@ export class DBObserver {
         // Merge current task with updates
         let mergedTask = { ...currentTask, ...task };
 
-        // Calculate duration if start and/or end are provided
-        if (task.duration === undefined) {
-            if (task.start && task.end) {
-                const startDate = new Date(task.start);
-                const endDate = new Date(task.end);
-                const durationInMs = endDate.getTime() - startDate.getTime();
-                const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
-                mergedTask.duration = durationInDays;
-            } else if (task.end && currentTask.start_date) {
-                const startDate = new Date(currentTask.start_date);
-                const endDate = new Date(task.end);
-                const durationInMs = endDate.getTime() - startDate.getTime();
-                const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
-                mergedTask.duration = durationInDays;
-            }
+        // Calculate duration using scheduling utility
+        const calculatedDuration = calculateTaskDuration(task, currentTask);
+        if (calculatedDuration !== undefined) {
+            mergedTask.duration = calculatedDuration;
         }
 
         // Prepare updates for database
