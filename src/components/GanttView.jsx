@@ -34,6 +34,7 @@ import { taskEventEmitter } from "@/lib/taskEventEmitter";
 import { DBObserver, UIObserver, ScheduleObserver } from "@/lib/taskObservers";
 import { validateTask, normalizeTask } from "@/lib/ganttUtils";
 import { createRecalculateFunction } from "@/lib/ganttScheduler";
+import { useGanttObservers } from "@/hooks/useGanttObservers";
 
 // Helper function to convert Date objects to ISO strings for Supabase
 const toISOString = (value) => {
@@ -52,9 +53,6 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     const [editingTask, setEditingTask] = useState(null);
     const [selectedTaskIds, setSelectedTaskIds] = useState([]);
 
-    // Observer instances
-    const observersRef = useRef(null);
-
     // Refs to track latest tasks and links state
     const tasksRef = useRef(tasks);
     const linksRef = useRef(links);
@@ -68,84 +66,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         linksRef.current = links;
     }, [links]);
 
-    // Initialize observers
-    useEffect(() => {
-        console.log('[GanttView] Initializing observers...');
 
-        // Create observer instances
-        const dbObserver = new DBObserver();
-        const uiObserver = new UIObserver(setTasks, setEditingTask, setLinks);
-
-        // ScheduleObserver will call recalculateAffectedTasks directly
-        // This ensures it always uses the latest tasks/links state
-        const scheduleObserver = new ScheduleObserver(
-            () => tasksRef.current,
-            () => linksRef.current,
-            async (task, updates) => {
-                // This will emit task:updated event
-                taskEventEmitter.emit('task:updated', {
-                    task,
-                    updates,
-                    changesAffectSchedule: true
-                });
-            },
-            recalculateAffectedTasks // Pass the function directly
-        );
-
-        console.log('[GanttView] Observers created:', { dbObserver, uiObserver, scheduleObserver });
-
-        // Store for later use
-        observersRef.current = {
-            db: dbObserver,
-            ui: uiObserver,
-            schedule: scheduleObserver
-        };
-
-        // Register event listeners
-        const unsubscribers = [
-            taskEventEmitter.on('task:updated', (event) => {
-                console.log('[GanttView] task:updated event received:', event);
-                dbObserver.handleTaskUpdated(event);
-                uiObserver.handleTaskUpdated(event);
-            }),
-            taskEventEmitter.on('task:created', async (event) => {
-                console.log('[GanttView] task:created event received:', event);
-                await dbObserver.handleTaskCreated(event);
-                await uiObserver.handleTaskCreated(event);
-            }),
-            taskEventEmitter.on('task:deleted', async (event) => {
-                console.log('[GanttView] task:deleted event received:', event);
-                await dbObserver.handleTaskDeleted(event);
-                await uiObserver.handleTaskDeleted(event);
-            }),
-            taskEventEmitter.on('link:created', async (event) => {
-                console.log('[GanttView] link:created event received:', event);
-                await dbObserver.handleLinkCreated(event);
-                await uiObserver.handleLinkCreated(event);
-                await scheduleObserver.handleLinkCreated(event);
-            }),
-            taskEventEmitter.on('link:updated', async (event) => {
-                console.log('[GanttView] link:updated event received:', event);
-                await dbObserver.handleLinkUpdated(event);
-                await uiObserver.handleLinkUpdated(event);
-                await scheduleObserver.handleLinkUpdated(event);
-            }),
-            taskEventEmitter.on('link:deleted', async (event) => {
-                console.log('[GanttView] link:deleted event received:', event);
-                await dbObserver.handleLinkDeleted(event);
-                await uiObserver.handleLinkDeleted(event);
-                await scheduleObserver.handleLinkDeleted(event);
-            })
-        ];
-
-        console.log('[GanttView] Event listeners registered');
-
-        // Cleanup on unmount
-        return () => {
-            console.log('[GanttView] Cleaning up observers');
-            unsubscribers.forEach(unsub => unsub());
-        };
-    }, []);
 
     useEffect(() => {
         setTasks(initialTasks || []);
@@ -403,6 +324,16 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         linksRef,
         handleTaskUpdate,
         toISOString
+    });
+
+    // Initialize observers using custom hook
+    const observersRef = useGanttObservers({
+        tasksRef,
+        linksRef,
+        setTasks,
+        setEditingTask,
+        setLinks,
+        recalculateAffectedTasks
     });
 
     const handleTaskDelete = async (taskId) => {
