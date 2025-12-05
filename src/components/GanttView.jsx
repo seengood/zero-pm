@@ -264,14 +264,6 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
 
     // validateTask and normalizeTask are now imported from ganttUtils
 
-    // Create recalculateAffectedTasks function using factory pattern
-    const recalculateAffectedTasks = createRecalculateFunction({
-        tasksRef,
-        linksRef,
-        handleTaskUpdate,
-        toISOString
-    });
-
     const handleTaskUpdate = async (task, skipRecalculation = false) => {
         console.log('[handleTaskUpdate] Called with task:', task);
 
@@ -403,6 +395,15 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
 
         return mergedTask;
     };
+
+    // Create recalculateAffectedTasks function using factory pattern
+    // (Must be after handleTaskUpdate definition)
+    const recalculateAffectedTasks = createRecalculateFunction({
+        tasksRef,
+        linksRef,
+        handleTaskUpdate,
+        toISOString
+    });
 
     const handleTaskDelete = async (taskId) => {
         const { error } = await deleteTask(taskId);
