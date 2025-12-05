@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Gantt, Willow } from "@svar-ui/react-gantt";
 import { Locale } from "@svar-ui/react-core";
 import "@/styles/gantt-svar.css";
@@ -192,12 +192,16 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
 
     // Create recalculateAffectedTasks function using factory pattern
     // (Must be after handleTaskUpdate definition)
-    const recalculateAffectedTasks = createRecalculateFunction({
-        tasksRef,
-        linksRef,
-        handleTaskUpdate,
-        toISOString
-    });
+    // Wrapped in useCallback to prevent Observer reinitialization
+    const recalculateAffectedTasks = useCallback(
+        createRecalculateFunction({
+            tasksRef,
+            linksRef,
+            handleTaskUpdate,
+            toISOString
+        }),
+        [tasksRef, linksRef, handleTaskUpdate]
+    );
 
     // Initialize observers using custom hook
     const observersRef = useGanttObservers({
