@@ -163,25 +163,14 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
             duration: task.duration,
             parent_id: task.parent,
             type: task.type || 'task',
-            progress: task.progress || 0
+            progress: task.progress || 0,
+            tempId: task.id // Preserve temp ID if exists
         };
 
-        const { data, error } = await createTask(newTask);
-        if (data) {
-            if (task.id) {
-                // Gantt UI initiated: Update local state replacing temp ID with real ID
-                setTasks(prev => prev.map(t => t.id === task.id ? { ...t, id: data.id } : t));
-            } else {
-                // Toolbar initiated: Add new task to state
-                setTasks(prev => [...prev, { ...newTask, id: data.id, start: newTask.start_date, parent: newTask.parent_id }]);
-            }
-            // Auto-select the newly created task
-            setSelectedTaskIds([data.id]);
-            return { ...task, id: data.id };
-        } else {
-            console.error("Failed to create task:", error);
-            // Revert optimistic update if needed
-        }
+        // Emit event - Observer handles DB save and UI update
+        await taskEventEmitter.emit('task:created', { task: newTask });
+
+        return newTask;
     };
 
     // validateTask and normalizeTask are now imported from ganttUtils
@@ -221,18 +210,11 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     });
 
     const handleTaskDelete = async (taskId) => {
-        const { error } = await deleteTask(taskId);
-        if (error) {
-            console.error("Failed to delete task:", error);
-        } else {
-            // Update local state to remove deleted task
-            setTasks(prevTasks => prevTasks.filter(t => t.id !== taskId));
-        }
+        // Emit event - Observer handles DB delete and UI update
+        await taskEventEmitter.emit('task:deleted', { taskId });
     };
 
     const handleLinkCreate = async (link) => {
-        console.log('handleLinkCreate called with:', link);
-
         const newLink = {
             project_id: projectId,
             source: link.source,
@@ -241,85 +223,20 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
             lag: link.lag || 0
         };
 
-        // Emit link:created event
-        taskEventEmitter.emit('link:created', {
-            link: newLink
-        });
+        // Emit event - Observer handles DB save, UI update, and auto-scheduling
+        await taskEventEmitter.emit('link:created', { link: newLink });
 
-        // Auto-schedule: Check if successor needs to move
-        const predecessor = tasks.find(t => String(t.id) === String(newLink.source));
-        const successor = tasks.find(t => String(t.id) === String(newLink.target));
-
-        if (predecessor && successor) {
-            const newStartDate = calculateSuccessorDate(predecessor, successor, newLink.type, newLink.lag);
-
-            if (newStartDate) {
-                const newEndDate = calculateEndDate(newStartDate, successor.duration);
-                console.log(`Auto-scheduling on link create: Moving task ${successor.text} to ${newStartDate.toISOString()} - ${newEndDate.toISOString()}`);
-                await handleTaskUpdate({
-                    ...successor,
-                    start: newStartDate,
-                    start_date: toISOString(newStartDate),
-                    end: newEndDate,
-                    end_date: toISOString(newEndDate)
-                });
-            }
-        }
-
-        return { ...link, id: newLink.id };
+        return newLink;
     };
 
     const handleLinkDelete = async (linkId) => {
-        console.log('handleLinkDelete called with:', linkId);
-
-        // Find the link before deletion for recalculation purposes
-        const link = links.find(l => String(l.id) === String(linkId));
-
-        // Emit link:deleted event
-        taskEventEmitter.emit('link:deleted', {
-            linkId,
-            link // Include link object for schedule recalculation
-        });
+        // Emit event - Observer handles DB delete and UI update
+        await taskEventEmitter.emit('link:deleted', { linkId });
     };
 
     const handleLinkUpdate = async (linkId, updates) => {
-        console.log('handleLinkUpdate called with:', linkId, updates);
-
-        // Find current link
-        const currentLink = links.find(l => String(l.id) === String(linkId));
-        if (!currentLink) {
-            console.error('Link not found:', linkId);
-            return null;
-        }
-
-        // Merge updates
-        const updatedLink = { ...currentLink, ...updates };
-
-        // Emit link:updated event
-        taskEventEmitter.emit('link:updated', {
-            link: updatedLink,
-            updates
-        });
-
-        // Auto-schedule: Check if successor needs to move
-        const predecessor = tasks.find(t => String(t.id) === String(updatedLink.source));
-        const successor = tasks.find(t => String(t.id) === String(updatedLink.target));
-
-        if (predecessor && successor) {
-            const newStartDate = calculateSuccessorDate(predecessor, successor, updatedLink.type, updatedLink.lag);
-
-            if (newStartDate) {
-                const newEndDate = calculateEndDate(newStartDate, successor.duration);
-                console.log(`Auto-scheduling: Moving task ${successor.text} to ${newStartDate.toISOString()} - ${newEndDate.toISOString()}`);
-                return await handleTaskUpdate({
-                    ...successor,
-                    start: newStartDate,
-                    start_date: toISOString(newStartDate),
-                    end: newEndDate,
-                    end_date: toISOString(newEndDate)
-                });
-            }
-        }
+        // Emit event - Observer handles DB update, UI update, and auto-scheduling
+        await taskEventEmitter.emit('link:updated', { linkId, updates });
 
         return null;
     };
