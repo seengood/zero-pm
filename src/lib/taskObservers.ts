@@ -21,8 +21,6 @@ export class DBObserver {
     async handleTaskUpdated(event: TaskEvent): Promise<void> {
         const { task, updates: providedUpdates, changesAffectSchedule } = event.payload;
 
-        console.log('[DBObserver] handleTaskUpdated - task:', task);
-
         // Get current task from ref if available
         const currentTask = this.tasksRef?.current?.find((t: any) => String(t.id) === String(task.id));
         if (!currentTask) {
@@ -30,12 +28,8 @@ export class DBObserver {
             return;
         }
 
-        console.log('[DBObserver] currentTask:', currentTask);
-
         // Merge current task with updates
         let mergedTask = { ...currentTask, ...task };
-
-        console.log('[DBObserver] mergedTask before duration calc:', mergedTask);
 
         // Calculate duration if start and/or end are provided
         if (task.duration === undefined) {
@@ -45,31 +39,20 @@ export class DBObserver {
                 const durationInMs = endDate.getTime() - startDate.getTime();
                 const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
                 mergedTask.duration = durationInDays;
-                console.log('[DBObserver] Calculated duration (both):', durationInDays);
             } else if (task.end && currentTask.start_date) {
                 const startDate = new Date(currentTask.start_date);
                 const endDate = new Date(task.end);
                 const durationInMs = endDate.getTime() - startDate.getTime();
                 const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
                 mergedTask.duration = durationInDays;
-                console.log('[DBObserver] Calculated duration (end only):', durationInDays, 'from', startDate, 'to', endDate);
             }
         }
-
-        console.log('[DBObserver] mergedTask after duration calc:', mergedTask);
 
         // Prepare updates for database
         const updates: any = {};
         if (task.text !== undefined) updates.text = task.text;
         if (task.start !== undefined) updates.start_date = toISOString(task.start);
         if (task.start_date !== undefined) updates.start_date = mergedTask.start_date;
-
-        console.log('[DBObserver] Duration comparison:', {
-            mergedDuration: mergedTask.duration,
-            currentDuration: currentTask.duration,
-            areEqual: mergedTask.duration === currentTask.duration
-        });
-
         if (mergedTask.duration !== currentTask.duration) updates.duration = mergedTask.duration;
         if (task.parent !== undefined) updates.parent_id = task.parent ? String(task.parent) : null;
         if (task.progress !== undefined) updates.progress = mergedTask.progress;
@@ -80,23 +63,16 @@ export class DBObserver {
             updates.constraint_date = task.constraint_date ? toISOString(task.constraint_date) : null;
         }
 
-        console.log('[DBObserver] Prepared updates:', updates);
-
         // Skip DB update if there are no changes
         if (Object.keys(updates).length === 0) {
-            console.log('[DBObserver] No updates to save, skipping database operation');
             return;
         }
-
-        console.log('[DBObserver] Saving task to database:', task.id);
 
         const { error } = await updateTask(String(task.id), updates);
         if (error) {
             console.error('[DBObserver] Failed to save task:', error);
             throw error;
         }
-
-        console.log('[DBObserver] Task saved successfully');
     }
 
     async handleTaskCreated(event: TaskEvent): Promise<void> {
