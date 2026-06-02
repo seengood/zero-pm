@@ -17,26 +17,8 @@ export function calculateTaskDuration(task, currentTask) {
         return task.duration;
     }
 
-    // Calculate from start and end dates
-    if (task.start && task.end) {
-        // Both start and end provided
-        const startDate = new Date(task.start);
-        const endDate = new Date(task.end);
-        const durationInMs = endDate.getTime() - startDate.getTime();
-        const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
-        return durationInDays;
-    } else if (task.end && currentTask.start_date) {
-        // Only end provided, use current start_date
-        const startDate = new Date(currentTask.start_date);
-        const endDate = new Date(task.end);
-        const durationInMs = endDate.getTime() - startDate.getTime();
-        const durationInDays = Math.ceil(durationInMs / (1000 * 60 * 60 * 24));
-        return durationInDays;
-    } else if (task.start && currentTask.duration) {
-        // Only start provided, keep current duration
-        return currentTask.duration;
-    }
-
+    // Do not calculate duration from start/end dates implicitly.
+    // If explicit duration is missing, we assume it hasn't changed.
     return undefined;
 }
 

@@ -26,7 +26,6 @@ const scales = [
     },
 ];
 
-import { createTask, updateTask, deleteTask, createLink, deleteLink, updateLink } from "@/lib/tasks";
 import { createBaseline, getBaselines } from "@/lib/baselines";
 import { calculateSuccessorDate, calculateEndDate, applyConstraint } from "@/lib/scheduling";
 import { parseToUTC, formatDateForDisplay, toISOString as dateToISO, calculateEndDateUTC } from "@/lib/dateUtils";
@@ -38,9 +37,11 @@ import { useGanttObservers } from "@/hooks/useGanttObservers";
 import { setupGanttIntercepts } from "@/lib/ganttIntercepts";
 
 // Helper function to convert Date objects to ISO strings for Supabase
+// Normalizes to UTC midnight of the local calendar date to avoid timezone shifts
 const toISOString = (value) => {
     if (value instanceof Date) {
-        return value.toISOString();
+        const normalized = new Date(Date.UTC(value.getFullYear(), value.getMonth(), value.getDate(), 0, 0, 0, 0));
+        return normalized.toISOString();
     }
     return value;
 };
@@ -92,6 +93,12 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         return tasks.map(task => {
             let startDate = parseToUTC(task.start_date || task.start);
 
+            // Normalize start date to 00:00:00 (ignore time component)
+            // if (startDate) {
+            //     startDate = new Date(startDate);
+            //     startDate.setHours(0, 0, 0, 0);
+            // }
+
             // Apply scheduling constraint to adjust start date
             if (task.constraint_type && task.constraint_type !== 'asap' && startDate) {
                 const calculatedEnd = calculateEndDateUTC(startDate, task.duration || 1);
@@ -102,12 +109,18 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
             // Format start date for display
             const startDateStr = formatDateForDisplay(startDate);
 
-            // Svar Gantt requires either (start + duration) OR (start + end), not both
-            // We provide start + duration and let Gantt calculate the end
+            // Calculate end date: duration 1 = same day 23:59
+            // duration 2 = next day 23:59, etc.
+            const duration = task.duration || 1;
+            const endDate = new Date(startDate);
+            endDate.setDate(endDate.getDate() + duration - 1);
+            endDate.setHours(23, 59, 59, 999);
+
+            // Provide both start and end to Gantt
             return {
                 ...task,
                 start: startDate,
-                // Don't provide end - let Svar Gantt calculate it from start + duration
+                end: endDate,
                 start_date: startDateStr,
                 id: String(task.id)
             };
@@ -117,7 +130,15 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     const columns = [
         { id: "text", header: { text: "작업명" }, width: 200, tree: true },
         { id: "start_date", header: { text: "시작일" }, align: "center", width: 100 },
-        { id: "duration", header: { text: "기간" }, align: "center", width: 60 },
+        {
+            id: "duration",
+            header: { text: "기간" },
+            align: "center",
+            width: 60,
+            // Force display of raw duration to show calendar days (including weekends)
+            // Force display of raw duration to show calendar days (including weekends)
+            cell: (cellData) => cellData.row.duration
+        },
         {
             id: "add-col",
             header: {
@@ -156,14 +177,24 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     }, []);
 
     const handleTaskCreate = async (task) => {
+        // Calculate next sort_order
+        const maxSortOrder = tasks.reduce((max, t) => {
+            const sortOrder = t.sort_order ?? 0;
+            return sortOrder > max ? sortOrder : max;
+        }, 0);
+
+        // Normalize start date to 00:00:00 (default to today if not provided)
+        const startDate = new Date(task.start || new Date());
+
         const newTask = {
             project_id: projectId,
             text: task.text,
-            start_date: toISOString(task.start),
+            start_date: toISOString(startDate),
             duration: task.duration,
             parent_id: task.parent,
             type: task.type || 'task',
             progress: task.progress || 0,
+            sort_order: maxSortOrder + 1,
             tempId: task.id // Preserve temp ID if exists
         };
 
@@ -240,9 +271,14 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     };
 
     const handleLinkUpdate = async (linkId, updates) => {
-        // Emit event - Observer handles DB update, UI update, and auto-scheduling
-        await taskEventEmitter.emit('link:updated', { linkId, updates });
+        const currentLink = linksRef.current.find(l => String(l.id) === String(linkId));
+        if (!currentLink) return null;
 
+        const updatedLink = { ...currentLink, ...updates };
+        // Update ref synchronously so ScheduleObserver sees the new link type immediately
+        linksRef.current = linksRef.current.map(l => String(l.id) === String(linkId) ? updatedLink : l);
+
+        await taskEventEmitter.emit('link:updated', { link: updatedLink, updates });
         return null;
     };
 
@@ -543,6 +579,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
                             onLinkUpdate={handleLinkUpdate}
                             selected={selectedTaskIds}
                             select={true}
+                            workingDays={[0, 1, 2, 3, 4, 5, 6]} // Treat all days as working days (Calendar Days)
                         />
                     </Willow>
                 </Locale>

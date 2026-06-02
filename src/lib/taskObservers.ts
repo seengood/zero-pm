@@ -44,6 +44,8 @@ export class DBObserver {
 
         if (calculatedDuration !== undefined) {
             mergedTask.duration = calculatedDuration;
+            // Update the original task object so UIObserver gets the calculated duration
+            task.duration = calculatedDuration;
         }
 
         console.log('[DBObserver] mergedTask after duration calc:', mergedTask);
@@ -51,20 +53,20 @@ export class DBObserver {
         // Prepare updates for database
         const updates: any = {};
         if (task.text !== undefined) updates.text = task.text;
-        if (task.start !== undefined) updates.start_date = toISOString(task.start);
-        if (task.start_date !== undefined) updates.start_date = mergedTask.start_date;
-        
-        // Save end_date if provided (important for resize operations)
-        if (task.end !== undefined) {
-            updates.end_date = toISOString(task.end);
+        if (task.start !== undefined) {
+            const d = new Date(task.start);
+            const normalized = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
+            updates.start_date = toISOString(normalized);
         }
-        
+        if (task.start_date !== undefined) updates.start_date = mergedTask.start_date;
+
+
         console.log('[DBObserver] Duration comparison:', {
             mergedDuration: mergedTask.duration,
             currentDuration: currentTask.duration,
             changed: mergedTask.duration !== currentTask.duration
         });
-        
+
         if (mergedTask.duration !== currentTask.duration) updates.duration = mergedTask.duration;
         if (task.parent !== undefined) updates.parent_id = task.parent ? String(task.parent) : null;
         if (task.progress !== undefined) updates.progress = mergedTask.progress;
@@ -74,6 +76,7 @@ export class DBObserver {
         if (task.constraint_date !== undefined) {
             updates.constraint_date = task.constraint_date ? toISOString(task.constraint_date) : null;
         }
+        if (task.sort_order !== undefined) updates.sort_order = task.sort_order;
 
         console.log('[DBObserver] Prepared updates:', updates);
 
@@ -181,14 +184,14 @@ export class UIObserver {
 
         console.log('[UIObserver] Updating UI for task:', task.id);
 
-        // Update tasks list
+        // Update tasks list - merge updates with existing task data
         this.setTasks((prev: any[]) => prev.map(t =>
-            String(t.id) === String(task.id) ? task : t
+            String(t.id) === String(task.id) ? { ...t, ...task } : t
         ));
 
-        // Update editing task if it's the same
+        // Update editing task if it's the same - merge updates
         this.setEditingTask((prev: any | null) =>
-            prev && String(prev.id) === String(task.id) ? task : prev
+            prev && String(prev.id) === String(task.id) ? { ...prev, ...task } : prev
         );
 
         console.log('[UIObserver] UI updated successfully');

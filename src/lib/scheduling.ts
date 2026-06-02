@@ -13,6 +13,8 @@ export function calculateSuccessorDate(
     const predStart = parseToUTC(predecessor.start_date || predecessor.start);
     if (!predStart) return null;
 
+    const succStart = parseToUTC(successor.start_date || successor.start);
+
     let predEnd = parseToUTC(predecessor.end_date || predecessor.end);
 
     // If predEnd is invalid, calculate it from start + duration
@@ -35,25 +37,28 @@ export function calculateSuccessorDate(
             break;
 
         case LINK_TYPES.FINISH_TO_FINISH: // FF
-            // Successor ends when predecessor ends (exclusive end date)
-            // End = Start + Duration, so Start = End - Duration
-            // Target End = PredEnd + lag
-            // NewStart = (PredEnd + lag) - Duration
+            // Successor ends when predecessor ends (inclusive end date from DB/SVAR)
+            // Target End = PredEnd + lag (inclusive)
+            // NewStart = TargetEnd - Duration + 1 (inclusive start from inclusive end)
             const targetEndFF = addDaysUTC(predEnd, lag);
-            newStart = addDaysUTC(targetEndFF, -succDuration);
+            newStart = addDaysUTC(targetEndFF, -succDuration + 1);
             break;
 
         case LINK_TYPES.START_TO_FINISH: // SF
-            // Successor ends when predecessor starts (exclusive end date)
-            // End = Start + Duration, so Start = End - Duration
-            // Target End = PredStart + lag
-            // NewStart = (PredStart + lag) - Duration
+            // Successor ends when predecessor starts (inclusive end date)
+            // Target End = PredStart + lag (inclusive)
+            // NewStart = TargetEnd - Duration + 1 (inclusive start from inclusive end)
             const targetEndSF = addDaysUTC(predStart, lag);
-            newStart = addDaysUTC(targetEndSF, -succDuration);
+            newStart = addDaysUTC(targetEndSF, -succDuration + 1);
             break;
 
         default:
             return null;
+    }
+
+    // Return null if the calculated date equals the successor's current start (no change needed)
+    if (succStart && newStart.getTime() === succStart.getTime()) {
+        return null;
     }
 
     return newStart;

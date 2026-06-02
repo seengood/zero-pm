@@ -10,7 +10,7 @@ export async function getTasks(projectId: string, supabase: SupabaseClient = def
         .from('tasks')
         .select('*')
         .eq('project_id', projectId)
-        .order('sort_order', { ascending: true });
+        .order('sort_order', { ascending: true, nullsFirst: false });
 
     if (error) {
         console.error('Error fetching tasks:', error);
@@ -50,6 +50,8 @@ export async function createTask(task: Partial<Task>, supabase: SupabaseClient =
 }
 
 export async function updateTask(taskId: string, updates: Partial<Task>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task | null; error: any }> {
+    console.log('[updateTask] Updating task:', taskId, 'with updates:', updates);
+
     const { data, error } = await supabase
         .from('tasks')
         .update(updates)
@@ -58,7 +60,13 @@ export async function updateTask(taskId: string, updates: Partial<Task>, supabas
         .single();
 
     if (error) {
-        console.error('Error updating task:', error);
+        console.error('[updateTask] Error details:', {
+            message: error.message,
+            details: error.details,
+            hint: error.hint,
+            code: error.code,
+            updates: updates
+        });
         return { data: null, error: error.message };
     }
 

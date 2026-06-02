@@ -62,7 +62,7 @@ describe('Tasks Library', () => {
             expect(mockSupabase.from).toHaveBeenCalledWith('tasks');
             expect(mockSelect).toHaveBeenCalledWith('*');
             expect(mockEq).toHaveBeenCalledWith('project_id', projectId);
-            expect(mockOrder).toHaveBeenCalledWith('sort_order', { ascending: true });
+            expect(mockOrder).toHaveBeenCalledWith('sort_order', { ascending: true, nullsFirst: false });
             expect(result.data).toEqual(mockData);
         });
     });

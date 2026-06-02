@@ -15,6 +15,9 @@ export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter }
         const taskId = params.id;
         const changes = params.task || {};
 
+        console.log('[Gantt] resize-task params:', params);
+        console.log('[Gantt] resize-task changes:', changes);
+
         // Just pass the changes, Observer will handle duration calculation
         await handleTaskUpdate({ id: taskId, ...changes });
         return params;

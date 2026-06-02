@@ -1,42 +1,33 @@
 /**
- * Date utility functions for consistent timezone handling
- * Uses local timezone to match Svar Gantt behavior
+ * Date utility functions for consistent UTC-based date handling
  */
 
 /**
- * Parse a date string or Date object and return a Date normalized to local midnight
+ * Parse a date string or Date object and return a Date normalized to UTC midnight
  */
 export function parseToUTC(dateInput: string | Date | null | undefined): Date | null {
     if (!dateInput) return null;
 
-    console.log('[parseToUTC] Input:', dateInput, 'Type:', typeof dateInput);
-
     const date = new Date(dateInput);
     if (isNaN(date.getTime())) return null;
 
-    // If input is a string with UTC timezone (Z or +00:00), it's already at UTC midnight
-    // Don't modify it, just return as-is
-    if (typeof dateInput === 'string' && (dateInput.endsWith('Z') || dateInput.includes('+00:00'))) {
-        console.log('[parseToUTC] UTC string detected, returning as-is:', date.toISOString());
+    // Date-only strings (YYYY-MM-DD) are parsed as UTC midnight per spec — return as-is
+    if (typeof dateInput === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(dateInput)) {
         return date;
     }
 
-    // If input is a Date object and it's already at UTC midnight (00:00:00.000), keep it
-    if (dateInput instanceof Date) {
-        const hours = date.getUTCHours();
-        const minutes = date.getUTCMinutes();
-        const seconds = date.getUTCSeconds();
-        const ms = date.getUTCMilliseconds();
-
-        if (hours === 0 && minutes === 0 && seconds === 0 && ms === 0) {
-            console.log('[parseToUTC] Date object already at UTC midnight, returning as-is:', date.toISOString());
-            return date;
-        }
+    // Strings with explicit UTC timezone are already at UTC midnight
+    if (typeof dateInput === 'string' && (dateInput.endsWith('Z') || dateInput.includes('+00:00'))) {
+        return date;
     }
 
-    // Otherwise, set to local midnight (not UTC)
-    date.setHours(0, 0, 0, 0);
-    console.log('[parseToUTC] Set to local midnight:', date.toISOString());
+    // If already at UTC midnight, keep it
+    if (date.getUTCHours() === 0 && date.getUTCMinutes() === 0 && date.getUTCSeconds() === 0 && date.getUTCMilliseconds() === 0) {
+        return date;
+    }
+
+    // Otherwise normalize to UTC midnight
+    date.setUTCHours(0, 0, 0, 0);
     return date;
 }
 
@@ -73,11 +64,11 @@ export function parseLocalDateToUTC(dateStr: string): Date | null {
 }
 
 /**
- * Add days to a date (local timezone)
+ * Add days to a UTC date
  */
 export function addDaysUTC(date: Date, days: number): Date {
     const result = new Date(date);
-    result.setDate(result.getDate() + days);
+    result.setUTCDate(result.getUTCDate() + days);
     return result;
 }
 
