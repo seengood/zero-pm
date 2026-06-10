@@ -50,8 +50,6 @@ export async function createTask(task: Partial<Task>, supabase: SupabaseClient =
 }
 
 export async function updateTask(taskId: string, updates: Partial<Task>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task | null; error: any }> {
-    console.log('[updateTask] Updating task:', taskId, 'with updates:', updates);
-
     const { data, error } = await supabase
         .from('tasks')
         .update(updates)
@@ -60,13 +58,7 @@ export async function updateTask(taskId: string, updates: Partial<Task>, supabas
         .single();
 
     if (error) {
-        console.error('[updateTask] Error details:', {
-            message: error.message,
-            details: error.details,
-            hint: error.hint,
-            code: error.code,
-            updates: updates
-        });
+        console.error('Error updating task:', taskId, error);
         return { data: null, error: error.message };
     }
 
