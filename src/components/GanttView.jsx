@@ -34,6 +34,7 @@ import { DBObserver, UIObserver, ScheduleObserver } from "@/lib/taskObservers";
 import { validateTask, normalizeTask } from "@/lib/ganttUtils";
 import { createRecalculateFunction } from "@/lib/ganttScheduler";
 import { useGanttObservers } from "@/hooks/useGanttObservers";
+import { useRealtimeSync } from "@/hooks/useRealtimeSync";
 import { setupGanttIntercepts } from "@/lib/ganttIntercepts";
 
 // Helper function to convert Date objects to ISO strings for Supabase
@@ -249,6 +250,17 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         setEditingTask,
         setLinks,
         recalculateAffectedTasks,
+        ganttApiRef,
+        isSchedulerUpdateRef
+    });
+
+    // Cross-tab / multi-user realtime sync via Supabase postgres_changes
+    useRealtimeSync({
+        projectId,
+        tasksRef,
+        linksRef,
+        setTasks,
+        setLinks,
         ganttApiRef,
         isSchedulerUpdateRef
     });
