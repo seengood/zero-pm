@@ -3,77 +3,59 @@
  * Auto-scheduling logic for Gantt tasks
  */
 
-import { calculateSuccessorDate, calculateEndDate } from './scheduling';
+import { calculateSuccessorDate, calculateEndDate, applyConstraint } from './scheduling';
 
-/**
- * Create a recalculate function with dependencies injected
- * @param {Object} deps - Dependencies
- * @param {React.MutableRefObject} deps.tasksRef - Ref to tasks array
- * @param {React.MutableRefObject} deps.linksRef - Ref to links array
- * @param {Function} deps.handleTaskUpdate - Task update handler
- * @param {Function} deps.toISOString - Date to ISO string converter
- * @returns {Function} - recalculateAffectedTasks function
- */
 export function createRecalculateFunction({ tasksRef, linksRef, handleTaskUpdate, toISOString }) {
     /**
-     * Recalculate all tasks affected by a change
-     * @param {string} changedTaskId - ID of the changed task
-     * @param {Object} updatedTaskData - Optional updated task data
+     * Recursively recalculate all tasks downstream of changedTaskId.
+     *
+     * @param {string} changedTaskId
+     * @param {Object|null} updatedTaskData - Use this instead of tasksRef (avoids stale React state)
+     * @param {Set} visited - Cycle guard; shared across the entire cascade call tree
      */
-    return async function recalculateAffectedTasks(changedTaskId, updatedTaskData = null) {
-        console.log(`Recalculating tasks affected by ${changedTaskId}...`);
+    async function recalculateAffectedTasks(changedTaskId, updatedTaskData = null, visited = new Set()) {
+        if (visited.has(String(changedTaskId))) return;
+        visited.add(String(changedTaskId));
 
-        // Use refs to get latest state
         const currentTasks = tasksRef.current;
         const currentLinks = linksRef.current;
 
-        // Find all links where the changed task is the source (predecessor)
         const successorLinks = currentLinks.filter(link => String(link.source) === String(changedTaskId));
+        if (successorLinks.length === 0) return;
 
-        if (successorLinks.length === 0) {
-            console.log('No successors to recalculate');
-            return;
-        }
+        // Prefer caller-supplied data — tasksRef.current may be stale because React
+        // state updates are async and haven't flushed yet at this point.
+        const predecessorTask = updatedTaskData || currentTasks.find(t => String(t.id) === String(changedTaskId));
+        if (!predecessorTask) return;
 
-        console.log(`Found ${successorLinks.length} successor(s) to recalculate`);
-
-        // Use provided updated data or get from current state
-        const updatedTask = updatedTaskData || currentTasks.find(t => String(t.id) === String(changedTaskId));
-        if (!updatedTask) return;
-
-        // Recalculate each successor
         for (const link of successorLinks) {
             const successor = currentTasks.find(t => String(t.id) === String(link.target));
-            console.log('[recalculate] Processing link:', { link, successor: successor?.text });
+            if (!successor || visited.has(String(successor.id))) continue;
 
-            if (successor) {
-                console.log('[recalculate] Calling calculateSuccessorDate with:', {
-                    predecessor: updatedTask.text,
-                    successor: successor.text,
-                    linkType: link.type,
-                    lag: link.lag || 0
-                });
+            const newStartDate = calculateSuccessorDate(predecessorTask, successor, link.type, link.lag || 0);
+            if (!newStartDate) continue; // calculateSuccessorDate returns null when date is unchanged
 
-                const newStartDate = calculateSuccessorDate(updatedTask, successor, link.type, link.lag || 0);
-                console.log('[recalculate] calculateSuccessorDate returned:', newStartDate);
+            // Apply scheduling constraint (ASAP / SNET / MSO / MFO / FNLT / ALAP)
+            const rawEndDate = calculateEndDate(newStartDate, successor.duration);
+            const { start: constrainedStart, end: constrainedEnd } = applyConstraint(successor, newStartDate, rawEndDate);
 
-                if (newStartDate) {
-                    const newEndDate = calculateEndDate(newStartDate, successor.duration);
-                    console.log(`Auto-updating successor ${successor.text}: ${newStartDate.toISOString()}`);
+            const updatedSuccessor = {
+                ...successor,
+                start: constrainedStart,
+                start_date: toISOString(constrainedStart),
+                end: constrainedEnd,
+                end_date: toISOString(constrainedEnd),
+            };
 
-                    // Use handleTaskUpdate to emit event (event-driven approach)
-                    // Skip recalculation to prevent infinite loop
-                    await handleTaskUpdate({
-                        ...successor,
-                        start: newStartDate,
-                        start_date: toISOString(newStartDate),
-                        end: newEndDate,
-                        end_date: toISOString(newEndDate)
-                    }, true); // skipRecalculation = true
-                } else {
-                    console.log('[recalculate] newStartDate is null, skipping update');
-                }
-            }
+            // Save to DB + update SVAR Gantt; skipRecalculation=true so handleTaskUpdate
+            // does NOT re-trigger this function (we handle cascading here).
+            await handleTaskUpdate(updatedSuccessor, true);
+
+            // Propagate further down the chain.
+            // Pass updatedSuccessor directly so the next level uses current (not stale) data.
+            await recalculateAffectedTasks(successor.id, updatedSuccessor, visited);
         }
-    };
+    }
+
+    return recalculateAffectedTasks;
 }
