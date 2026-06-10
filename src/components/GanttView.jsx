@@ -27,7 +27,7 @@ const scales = [
 ];
 
 import { createBaseline, getBaselines } from "@/lib/baselines";
-import { calculateSuccessorDate, calculateEndDate, applyConstraint } from "@/lib/scheduling";
+import { applyConstraint } from "@/lib/scheduling";
 import { parseToUTC, formatDateForDisplay, toISOString as dateToISO, calculateEndDateUTC } from "@/lib/dateUtils";
 import { taskEventEmitter } from "@/lib/taskEventEmitter";
 import { DBObserver, UIObserver, ScheduleObserver } from "@/lib/taskObservers";
@@ -303,99 +303,6 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         }
     };
 
-    const handleRecalculateDates = async () => {
-        console.log('Recalculating all task dates...');
-
-        // Build a map of task dependencies
-        const taskMap = new Map(tasks.map(t => [String(t.id), t]));
-        const linksByTarget = new Map();
-
-        // Group links by target (successor)
-        links.forEach(link => {
-            const targetId = String(link.target);
-            if (!linksByTarget.has(targetId)) {
-                linksByTarget.set(targetId, []);
-            }
-            linksByTarget.get(targetId).push(link);
-        });
-
-        // Process tasks in topological order (predecessors before successors)
-        const visited = new Set();
-        const updatedTasks = [];
-
-        const processTask = async (taskId) => {
-            if (visited.has(taskId)) return;
-            visited.add(taskId);
-
-            const task = taskMap.get(taskId);
-            if (!task) return;
-
-            const predecessorLinks = linksByTarget.get(taskId) || [];
-
-            if (predecessorLinks.length > 0) {
-                // Calculate the latest required start date based on all predecessors
-                let latestStartDate = null;
-
-                for (const link of predecessorLinks) {
-                    const predecessor = taskMap.get(String(link.source));
-                    if (predecessor) {
-                        // Process predecessor first
-                        await processTask(String(link.source));
-
-                        const predStartDate = parseToUTC(predecessor.start_date || predecessor.start);
-                        const newStartDate = calculateSuccessorDate(predecessor, task, link.type, link.lag || 0);
-
-                        if (newStartDate && (!latestStartDate || newStartDate > latestStartDate)) {
-                            latestStartDate = newStartDate;
-                        }
-                    }
-                }
-
-                if (latestStartDate) {
-                    const newEndDate = calculateEndDate(latestStartDate, task.duration);
-                    console.log(`Updating ${task.text}: ${latestStartDate.toISOString()}`);
-
-                    updatedTasks.push({
-                        ...task,
-                        start: latestStartDate,
-                        start_date: toISOString(latestStartDate),
-                        end: newEndDate,
-                        end_date: toISOString(newEndDate)
-                    });
-
-                    // Update task in map for subsequent calculations
-                    taskMap.set(taskId, {
-                        ...task,
-                        start: latestStartDate,
-                        start_date: toISOString(latestStartDate)
-                    });
-                }
-            }
-        };
-
-        // Process all tasks
-        for (const task of tasks) {
-            await processTask(String(task.id));
-        }
-
-        // Update all modified tasks
-        for (const task of updatedTasks) {
-            await handleTaskUpdate(task);
-        }
-
-        // Update local state to reflect changes immediately
-        setTasks(prevTasks => {
-            const taskMap = new Map(prevTasks.map(t => [String(t.id), t]));
-            updatedTasks.forEach(updatedTask => {
-                taskMap.set(String(updatedTask.id), updatedTask);
-            });
-            return Array.from(taskMap.values());
-        });
-
-        console.log(`Recalculated ${updatedTasks.length} tasks`);
-        alert(`${updatedTasks.length}개 작업의 날짜를 재계산했습니다.`);
-    };
-
     const handleContextMenu = (event) => {
         event.preventDefault();
         // Prevent default browser context menu
@@ -513,21 +420,6 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
                     }}
                 >
                     Create Baseline
-                </button>
-                <button
-                    onClick={handleRecalculateDates}
-                    style={{
-                        padding: '0.5rem 1rem',
-                        backgroundColor: '#10b981',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        fontWeight: 500
-                    }}
-                >
-                    날짜 재계산
                 </button>
                 <div style={{ fontSize: '0.875rem', color: '#666' }}>
                     Saved Baselines: {baselines.length}
