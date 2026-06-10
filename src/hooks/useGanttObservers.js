@@ -24,13 +24,13 @@ export function useGanttObservers({
     setTasks,
     setEditingTask,
     setLinks,
-    recalculateAffectedTasks
+    recalculateAffectedTasks,
+    ganttApiRef,
+    isSchedulerUpdateRef
 }) {
     const observersRef = useRef(null);
 
     useEffect(() => {
-        console.log('[useGanttObservers] Initializing observers...');
-
         // Create observer instances
         const dbObserver = new DBObserver(tasksRef);
         const uiObserver = new UIObserver(setTasks, setEditingTask, setLinks);
@@ -49,8 +49,6 @@ export function useGanttObservers({
             recalculateAffectedTasks
         );
 
-        console.log('[useGanttObservers] Observers created');
-
         // Store for later use
         observersRef.current = {
             db: dbObserver,
@@ -61,45 +59,51 @@ export function useGanttObservers({
         // Register event listeners
         const unsubscribers = [
             taskEventEmitter.on('task:updated', (event) => {
-                console.log('[useGanttObservers] task:updated event received:', event);
                 dbObserver.handleTaskUpdated(event);
                 uiObserver.handleTaskUpdated(event);
+
+                // Scheduler-triggered updates (skipRecalculation=true) must also be pushed
+                // directly into SVAR Gantt's internal store — it ignores React prop changes.
+                const skipRecalculation = event.payload?.skipRecalculation;
+                if (skipRecalculation && ganttApiRef?.current) {
+                    const { task } = event.payload;
+                    const startDate = task.start instanceof Date ? task.start : new Date(task.start_date);
+                    const endDate = task.end instanceof Date ? task.end : new Date(task.end_date || task.start_date);
+                    isSchedulerUpdateRef.current = true;
+                    ganttApiRef.current.exec('update-task', {
+                        id: String(task.id),
+                        task: { start: startDate, end: endDate, duration: task.duration }
+                    });
+                    isSchedulerUpdateRef.current = false;
+                }
             }),
             taskEventEmitter.on('task:created', async (event) => {
-                console.log('[useGanttObservers] task:created event received:', event);
                 await dbObserver.handleTaskCreated(event);
                 await uiObserver.handleTaskCreated(event);
             }),
             taskEventEmitter.on('task:deleted', async (event) => {
-                console.log('[useGanttObservers] task:deleted event received:', event);
                 await dbObserver.handleTaskDeleted(event);
                 await uiObserver.handleTaskDeleted(event);
             }),
             taskEventEmitter.on('link:created', async (event) => {
-                console.log('[useGanttObservers] link:created event received:', event);
                 await dbObserver.handleLinkCreated(event);
                 await uiObserver.handleLinkCreated(event);
                 await scheduleObserver.handleLinkCreated(event);
             }),
             taskEventEmitter.on('link:updated', async (event) => {
-                console.log('[useGanttObservers] link:updated event received:', event);
                 await dbObserver.handleLinkUpdated(event);
                 await uiObserver.handleLinkUpdated(event);
                 await scheduleObserver.handleLinkUpdated(event);
             }),
             taskEventEmitter.on('link:deleted', async (event) => {
-                console.log('[useGanttObservers] link:deleted event received:', event);
                 await dbObserver.handleLinkDeleted(event);
                 await uiObserver.handleLinkDeleted(event);
                 await scheduleObserver.handleLinkDeleted(event);
             })
         ];
 
-        console.log('[useGanttObservers] Event listeners registered');
-
         // Cleanup on unmount
         return () => {
-            console.log('[useGanttObservers] Cleaning up observers...');
             unsubscribers.forEach(unsub => unsub());
         };
     }, [tasksRef, linksRef, setTasks, setEditingTask, setLinks, recalculateAffectedTasks]);

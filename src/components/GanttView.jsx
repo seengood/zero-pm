@@ -59,6 +59,11 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     const tasksRef = useRef(tasks);
     const linksRef = useRef(links);
 
+    // SVAR Gantt API ref — used to push scheduler updates directly into Gantt's internal store
+    const ganttApiRef = useRef(null);
+    // Flag to skip our intercept when we're the ones calling exec (prevents infinite loop)
+    const isSchedulerUpdateRef = useRef(false);
+
     // Update refs when state changes
     useEffect(() => {
         tasksRef.current = tasks;
@@ -210,6 +215,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         // Simply emit event - Observer handles all logic
         await taskEventEmitter.emit('task:updated', {
             task,
+            skipRecalculation,
             changesAffectSchedule: task.start !== undefined || task.duration !== undefined || task.start_date !== undefined
         });
 
@@ -242,7 +248,9 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         setTasks,
         setEditingTask,
         setLinks,
-        recalculateAffectedTasks
+        recalculateAffectedTasks,
+        ganttApiRef,
+        isSchedulerUpdateRef
     });
 
     const handleTaskDelete = async (taskId) => {
@@ -566,8 +574,9 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
                             scales={scales}
                             columns={columns}
                             init={(api) => {
+                                ganttApiRef.current = api;
                                 setupGanttIntercepts(api,
-                                    { handleTaskUpdate, taskEventEmitter },
+                                    { handleTaskUpdate, taskEventEmitter, isSchedulerUpdateRef },
                                     { tasks, links, projectId }
                                 );
                             }}

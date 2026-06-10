@@ -9,14 +9,12 @@
  * @param {Object} handlers - Handler functions
  * @param {Object} state - Current state
  */
-export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter }, { tasks, links, projectId }) {
+export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter, isSchedulerUpdateRef }, { tasks, links, projectId }) {
     // Intercept resize-task action (triggered by resizing bars)
     api.intercept("resize-task", async (params) => {
+        if (isSchedulerUpdateRef?.current) return params;
         const taskId = params.id;
         const changes = params.task || {};
-
-        console.log('[Gantt] resize-task params:', params);
-        console.log('[Gantt] resize-task changes:', changes);
 
         // Just pass the changes, Observer will handle duration calculation
         await handleTaskUpdate({ id: taskId, ...changes });
@@ -25,6 +23,7 @@ export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter }
 
     // Intercept update-task action (triggered by dragging bars)
     api.intercept("update-task", async (params) => {
+        if (isSchedulerUpdateRef?.current) return params;
         const taskId = params.id;
         const changes = params.task || {};
 
