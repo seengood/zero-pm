@@ -97,7 +97,8 @@ supabase/migrations/
 ├── 20251204000000_add_baselines.sql        # 기준선(Baseline) 기능
 ├── 20251204000004_add_task_description.sql # 작업 설명 필드
 ├── 20251204000006_fix_update_with_check.sql # RLS WITH CHECK 수정
-└── 20251205000000_add_task_constraints.sql  # 스케줄 제약 조건
+├── 20251205000000_add_task_constraints.sql  # 스케줄 제약 조건
+└── 20260610000000_enable_realtime.sql      # tasks/links Realtime publication 등록
 ```
 
 ### 주요 DB 함수
@@ -111,7 +112,32 @@ supabase/migrations/
 
 ---
 
-## 5. 보안 (RLS)
+## 5. 실시간 동기화 (Realtime)
+
+`tasks`와 `links` 테이블은 `supabase_realtime` publication에 등록되어 있습니다. `src/hooks/useRealtimeSync.ts`가 `postgres_changes`를 구독하여 다른 브라우저 탭 또는 다른 사용자의 변경 사항을 실시간으로 수신합니다.
+
+### 동작 방식
+
+- **INSERT**: 새 task/link가 로컬 상태에 없으면 추가 (id 존재 여부로 자신의 에코 필터링)
+- **UPDATE**: 수신 row의 key 필드(start, duration, text)와 `tasksRef.current`를 비교해 자신의 저장 에코는 건너뜀. 타 탭 변경이면 React 상태 + SVAR Gantt 내부 스토어에 적용.
+- **DELETE**: 해당 id를 로컬 상태와 SVAR에서 제거
+
+### 로컬 환경 적용
+
+`supabase_realtime` publication은 DB가 살아있는 상태에서 마이그레이션 파일을 직접 psql로 실행해야 합니다 (CLI `config.toml` 미사용):
+
+```bash
+docker exec supabase_db_zero-pm psql -U postgres \
+  -c "ALTER PUBLICATION supabase_realtime ADD TABLE public.tasks;"
+docker exec supabase_db_zero-pm psql -U postgres \
+  -c "ALTER PUBLICATION supabase_realtime ADD TABLE public.links;"
+```
+
+`npx supabase db reset` 이후에는 위 명령을 다시 실행해야 합니다.
+
+---
+
+## 7. 보안 (RLS)
 
 모든 테이블에 Row Level Security 활성화. 주요 정책:
 - 프로젝트 소유자 또는 `project_members`에 등록된 유저만 접근 가능
@@ -122,7 +148,7 @@ RLS 테스트 방법은 `docs/RLS_TESTING.md` 참고.
 
 ---
 
-## 6. 자주 쓰는 명령어
+## 8. 자주 쓰는 명령어
 
 ```bash
 # 로컬 Supabase 시작 (Docker 필요)
@@ -146,7 +172,7 @@ npx supabase stop
 
 ---
 
-## 7. 관련 문서
+## 9. 관련 문서
 
 - `docs/REMOTE_DEPLOYMENT.md` — 리모트 배포 체크리스트
 - `docs/마이그레이션-가이드.md` — 마이그레이션 상세 가이드

@@ -44,18 +44,35 @@ npm run test:auth    # Supabase 인증 통합 테스트 (.env.local을 dotenv로
        DBObserver        → Supabase에 영속화 (src/lib/tasks.ts)
        UIObserver        → setTasks/setLinks React 상태 갱신 (업데이트 병합)
        ScheduleObserver  → 의존 task에 대해 recalculateAffectedTasks 트리거
+
+스케줄링 전파 (후행 task 날짜 자동 갱신)
+  → ScheduleObserver가 recalculateAffectedTasks 호출
+  → ganttScheduler.js가 후행 링크를 순회하며 emit('task:updated', { skipRecalculation: true })
+  → useGanttObservers.js: skipRecalculation=true 감지 →
+       ganttApiRef.current.exec('update-task', ...) 로 SVAR 내부 스토어에 직접 푸시
+       (isSchedulerUpdateRef=true 로 인터셉트 재진입 방지)
+
+실시간 크로스탭/멀티유저 동기화
+  → useRealtimeSync.ts: Supabase postgres_changes 구독 (tasks, links 테이블)
+  → 원격 변경 수신 → 중복 제거(자신의 에코인지 tasksRef와 비교) →
+       setTasks/setLinks 로 React 상태 갱신
+       ganttApiRef.current.exec(...) 로 SVAR 내부 스토어 갱신
 ```
 
 핵심 파일:
 - `src/lib/taskEventEmitter.ts` — 싱글턴 pub/sub. 이벤트 타입: `task:created|updated|deleted`, `link:created|updated|deleted`. 리스너는 `{ type, payload, timestamp }`를 받습니다.
 - `src/lib/taskObservers.ts` — `DBObserver`, `UIObserver`, `ScheduleObserver`. **DBObserver와 UIObserver는 현재 task에 업데이트를 병합**합니다(`{ ...currentTask, ...task }`). 부분(partial) 이벤트가 다른 필드를 지우지 않도록 하기 위함이니, 수정 시 이 동작을 유지하세요.
-- `src/hooks/useGanttObservers.js` — 옵저버를 인스턴스화하고 이미터 구독을 연결하며, 언마운트 시 정리(cleanup)합니다.
+- `src/hooks/useGanttObservers.js` — 옵저버를 인스턴스화하고 이미터 구독을 연결하며, 언마운트 시 정리(cleanup)합니다. `skipRecalculation=true` 이벤트 수신 시 `ganttApiRef.current.exec('update-task', ...)`를 호출해 SVAR 내부 스토어를 직접 갱신합니다.
+- `src/hooks/useRealtimeSync.ts` — Supabase `postgres_changes`를 구독해 다른 탭/유저의 변경을 실시간 수신. 자신의 에코는 `tasksRef.current`와 키 필드(start, duration, text) 비교로 건너뜁니다.
 - `src/lib/ganttScheduler.js` — `createRecalculateFunction`: 후행(successor) 링크를 따라가며 의존 task에 대한 업데이트를 emit 합니다. 전파 루프를 끊기 위해 `skipRecalculation=true`를 전달합니다.
 - `src/lib/scheduling.ts` — 순수 스케줄링 계산: `calculateSuccessorDate`(FS/SS/FF/SF + lag), `calculateEndDate`, `applyConstraint`(6종 제약 조건).
-- `src/components/GanttView.jsx` — 오케스트레이터. `'use client'`이며 tasks/links 상태를 보유하고, `tasksRef`/`linksRef`가 상태를 미러링하여 이미터 콜백이 항상 최신 값을 읽도록 합니다.
+- `src/components/GanttView.jsx` — 오케스트레이터. `'use client'`이며 tasks/links 상태를 보유하고, `tasksRef`/`linksRef`가 상태를 미러링하여 이미터 콜백이 항상 최신 값을 읽도록 합니다. `ganttApiRef`에 SVAR API 객체를 저장하고, `isSchedulerUpdateRef`로 프로그래매틱 exec 시 인터셉트 재진입을 방지합니다.
+
+### 중요: SVAR Gantt는 React props 변경을 무시한다
+SVAR Gantt는 마운트 후 `tasks`/`links` React props 변경을 반영하지 않습니다. 모든 프로그래매틱 업데이트(스케줄링 전파, 크로스탭 동기화)는 반드시 `ganttApiRef.current.exec('update-task'|'add-task'|'delete-task'|'add-link'|'delete-link', ...)` 로 SVAR 내부 스토어에 직접 적용해야 합니다.
 
 ### 중요: ref와 useMemo로 옵저버 재초기화 방지
-`recalculateAffectedTasks`는 `useMemo([])`로 감싸여 있고, 옵저버는 안정적인(stable) ref에만 의존합니다. 최근 커밋들이 바로 이 옵저버 재초기화 문제를 수정했습니다 — **옵저버/`useMemo` 셋업에 변하는 의존성을 추가하지 마세요.** 재초기화 버그가 다시 발생합니다. 최신 task/link 데이터는 클로저에 캡처된 상태가 아니라 항상 `tasksRef.current` / `linksRef.current`로 읽어야 합니다.
+`recalculateAffectedTasks`는 `useMemo([])`로 감싸여 있고, 옵저버는 안정적인(stable) ref에만 의존합니다. **옵저버/`useMemo` 셋업에 변하는 의존성을 추가하지 마세요.** 재초기화 버그가 다시 발생합니다. 최신 task/link 데이터는 클로저에 캡처된 상태가 아니라 항상 `tasksRef.current` / `linksRef.current`로 읽어야 합니다.
 
 ## 도메인 규칙
 
@@ -69,7 +86,10 @@ npm run test:auth    # Supabase 인증 통합 테스트 (.env.local을 dotenv로
 - 클라이언트: `src/lib/supabase/client.ts`(브라우저), `server.ts`(SSR). `src/lib/tasks.ts` / `projects.ts`가 데이터 접근 계층이며, 각 함수는 테스트 용이성을 위해 선택적 `supabase` 클라이언트 인자를 받습니다(기본값은 브라우저 클라이언트).
 - 낙관적 잠금: `src/lib/optimisticLocking.ts`가 `version` 컬럼을 사용합니다.
 - 마이그레이션: `supabase/migrations/*.sql`(타임스탬프 형식). RLS 정책이 핵심이며, 인증/보안 테스트는 `supabase/tests/`의 pgTAP 파일입니다. `docs/RLS_TESTING.md`, `docs/REMOTE_DEPLOYMENT.md` 참고.
-- 실시간: "누가 편집 중인지" 프레즌스는 `src/hooks/usePresence.ts`의 Supabase 채널로, CRDT 문서 동기화는 `src/hooks/useYjs.ts` + `src/lib/yjs.ts`의 Yjs로 처리합니다(y-websocket 서버 필요, `NEXT_PUBLIC_YJS_WS_URL`, 기본값 `ws://localhost:1234`).
+- 실시간:
+  - **크로스탭/멀티유저 데이터 동기화**: `src/hooks/useRealtimeSync.ts`가 `postgres_changes`로 `tasks`/`links` 테이블 변경을 구독. `supabase_realtime` publication에 두 테이블이 등록되어 있어야 함(`supabase/migrations/20260610000000_enable_realtime.sql`).
+  - **프레즌스** ("누가 편집 중인지"): `src/hooks/usePresence.ts`의 Supabase 채널.
+  - **CRDT 문서 동기화**: `src/hooks/useYjs.ts` + `src/lib/yjs.ts`의 Yjs(y-websocket 서버 필요, `NEXT_PUBLIC_YJS_WS_URL`, 기본값 `ws://localhost:1234`).
 
 ## 테스트 규칙
 
@@ -82,4 +102,4 @@ npm run test:auth    # Supabase 인증 통합 테스트 (.env.local을 dotenv로
 ## 참고 사항
 
 - `GanttView.jsx` 및 간트 라이브러리 파일들(`ganttIntercepts.js`, `ganttScheduler.js`, `ganttUtils.js`, `taskUpdateUtils.js`)은 의도적으로 TS가 아닌 `.js`/`.jsx`입니다 — 타입이 없는 SVAR API와 연동하기 때문입니다.
-- 옵저버 파일들에는 현재 광범위한 `console.log` 디버그 출력이 있습니다. 개발 전용으로 취급하세요.
+- `tasks.ts`에는 아직 `console.log` 디버그 출력이 남아 있습니다. 옵저버/훅 파일들은 정리 완료.
