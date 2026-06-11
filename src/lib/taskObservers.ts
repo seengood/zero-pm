@@ -5,6 +5,7 @@
 
 import { TaskEvent } from './taskEventEmitter';
 import { updateTask, createTask, deleteTask, createLink, updateLink, deleteLink } from './tasks';
+import { updateTaskWithOptimisticLock } from './optimisticLocking';
 import { toISOString } from './dateUtils';
 import { calculateTaskDuration } from './taskUpdateUtils';
 
@@ -60,10 +61,20 @@ export class DBObserver {
 
         if (Object.keys(updates).length === 0) return;
 
-        const { error } = await updateTask(String(task.id), updates);
-        if (error) {
-            console.error('[DBObserver] Failed to save task:', error);
-            throw error;
+        const result = await updateTaskWithOptimisticLock(
+            String(task.id),
+            currentTask.version ?? 1,
+            updates
+        );
+        if (!result.success) {
+            console.error('[DBObserver] Failed to save task:', result.error);
+            throw new Error(result.error);
+        }
+        // tasksRef에 새 버전 즉시 반영 — 빠른 연속 저장 시 불필요한 version conflict 방지
+        if (result.newVersion !== undefined && this.tasksRef?.current) {
+            this.tasksRef.current = this.tasksRef.current.map((t: any) =>
+                String(t.id) === String(task.id) ? { ...t, version: result.newVersion } : t
+            );
         }
     }
 
@@ -139,7 +150,7 @@ export class UIObserver {
         const { task } = event.payload;
 
         this.setTasks((prev: any[]) => prev.map(t =>
-            String(t.id) === String(task.id) ? { ...t, ...task } : t
+            String(t.id) === String(task.id) ? { ...t, ...task, version: (t.version || 1) + 1 } : t
         ));
 
         this.setEditingTask((prev: any | null) =>

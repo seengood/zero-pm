@@ -33,6 +33,7 @@ jest.mock('@/locales/ko.js', () => ({
 
 // Mock @/lib/tasks
 import { createTask, updateTask, deleteTask, createLink, deleteLink, updateLink } from '@/lib/tasks';
+import { updateTaskWithOptimisticLock } from '@/lib/optimisticLocking';
 import { createBaseline, getBaselines } from '@/lib/baselines';
 
 jest.mock('@/lib/tasks', () => ({
@@ -42,6 +43,12 @@ jest.mock('@/lib/tasks', () => ({
     createLink: jest.fn(),
     deleteLink: jest.fn(),
     updateLink: jest.fn(),
+}));
+
+jest.mock('@/lib/optimisticLocking', () => ({
+    updateTaskWithOptimisticLock: jest.fn().mockResolvedValue({ success: true, newVersion: 2 }),
+    saveCPMResults: jest.fn(),
+    createBaseline: jest.fn(),
 }));
 
 jest.mock('@/lib/baselines', () => ({
@@ -99,17 +106,17 @@ describe('GanttView', () => {
     });
 
     it('should call updateTask when a task is updated', async () => {
-        (updateTask).mockResolvedValue({ data: { id: '1', text: 'Updated Task' }, error: null });
-
         render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
         await waitFor(() => expect(screen.getByTestId('mock-gantt')).toBeInTheDocument());
 
         screen.getByTestId('btn-update-task').click();
 
         await waitFor(() => {
-            expect(updateTask).toHaveBeenCalledWith('1', expect.objectContaining({
-                text: 'Updated Task',
-            }));
+            expect(updateTaskWithOptimisticLock).toHaveBeenCalledWith(
+                '1',
+                expect.any(Number),
+                expect.objectContaining({ text: 'Updated Task' })
+            );
         });
     });
 
@@ -124,8 +131,7 @@ describe('GanttView', () => {
 
         // Mock updateLink response
         updateLink.mockResolvedValue({ data: { id: 'l1', type: 's2s', lag: 0 }, error: null });
-        // Mock updateTask response for the auto-scheduled task
-        updateTask.mockResolvedValue({ data: { id: '2', start_date: '2023-01-01' }, error: null });
+        // updateTaskWithOptimisticLock is already mocked at the module level
 
         render(<GanttView projectId="p1" initialTasks={initialTasks} initialLinks={initialLinks} />);
 
@@ -140,12 +146,13 @@ describe('GanttView', () => {
                 type: 's2s',
             }));
 
-            // Expect updateTask to be called for the successor task ('2')
-            // The start date should be adjusted based on the predecessor's start date and link type 's2s'
+            // Expect updateTaskWithOptimisticLock to be called for the successor task ('2')
             // Task 1 starts on 2023-01-01. With s2s, Task 2 should also start on 2023-01-01.
-            expect(updateTask).toHaveBeenCalledWith('2', expect.objectContaining({
-                start_date: '2023-01-01T00:00:00.000Z',
-            }));
+            expect(updateTaskWithOptimisticLock).toHaveBeenCalledWith(
+                '2',
+                expect.any(Number),
+                expect.objectContaining({ start_date: '2023-01-01T00:00:00.000Z' })
+            );
         });
     });
 
