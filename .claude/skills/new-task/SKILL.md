@@ -68,7 +68,7 @@ git checkout -b feat/<name> main
 - **작업 디렉토리** (worktree일 때): 절대 경로
 - **브랜치명**: `feat/<name>`
 - **작업 완료 후 처리**:
-  - Worktree: `git worktree remove <path>` 후 PR 생성
+  - Worktree: `git worktree remove <path>` 후 PR 생성 (미커밋/미추적 파일이 남아 있으면 `git worktree remove --force <path>`)
   - 브랜치: `git checkout main && git merge feat/<name>`
 - stash를 했다면: `git stash pop`으로 복원할 수 있음을 알려줘
 
