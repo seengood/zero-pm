@@ -9,7 +9,7 @@
  * @param {Object} handlers - Handler functions
  * @param {Object} state - Current state
  */
-export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter, isSchedulerUpdateRef }, { tasks, links, projectId }) {
+export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter, isSchedulerUpdateRef }, { links, projectId }) {
     // Intercept resize-task action (triggered by resizing bars)
     api.intercept("resize-task", async (params) => {
         if (isSchedulerUpdateRef?.current) return params;

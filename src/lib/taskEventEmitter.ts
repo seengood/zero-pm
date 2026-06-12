@@ -13,7 +13,7 @@ export type TaskEventType =
 
 export interface TaskEvent {
     type: TaskEventType;
-    payload: any;
+    payload: Record<string, unknown>;
     timestamp: number;
 }
 
@@ -40,7 +40,7 @@ class TaskEventEmitter {
     /**
      * Emit an event to all registered listeners
      */
-    async emit(eventType: TaskEventType, payload: any): Promise<void> {
+    async emit(eventType: TaskEventType, payload: Record<string, unknown>): Promise<void> {
         const event: TaskEvent = {
             type: eventType,
             payload,

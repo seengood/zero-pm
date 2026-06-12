@@ -1,10 +1,10 @@
-import { Task, ConstraintType } from '@/types/database';
+import { Task } from '@/types/database';
 import { LINK_TYPES, CONSTRAINT_TYPES } from '@/lib/constants';
 import { parseToUTC, addDaysUTC } from '@/lib/dateUtils';
 
 export function calculateSuccessorDate(
-    predecessor: any,
-    successor: any,
+    predecessor: Task,
+    successor: Task,
     linkType: string,
     lag: number = 0
 ): Date | null {

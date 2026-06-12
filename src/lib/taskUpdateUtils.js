@@ -6,12 +6,12 @@
 /**
  * Calculate task duration from start and end dates
  * This is a scheduling utility function
- * 
+ *
  * @param {Object} task - Task with potential start/end updates
- * @param {Object} currentTask - Current task state
+ * @param {Object} _currentTask - Current task state (unused, kept for API compatibility)
  * @returns {number|undefined} - Calculated duration in days, or undefined if not calculable
  */
-export function calculateTaskDuration(task, currentTask) {
+export function calculateTaskDuration(task, _currentTask) {
     // If duration is already explicitly set, use it
     if (task.duration !== undefined) {
         return task.duration;

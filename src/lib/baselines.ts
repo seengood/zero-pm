@@ -9,7 +9,7 @@ export async function createBaseline(
     tasks: Task[],
     links: Link[],
     supabase: SupabaseClient = defaultSupabase
-): Promise<{ data: Baseline | null; error: any }> {
+): Promise<{ data: Baseline | null; error: string | null }> {
     const baselineData = {
         tasks: tasks.map(t => ({
             id: t.id,
@@ -42,7 +42,7 @@ export async function createBaseline(
     return { data, error: null };
 }
 
-export async function getBaselines(projectId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Baseline[] | null; error: any }> {
+export async function getBaselines(projectId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Baseline[] | null; error: string | null }> {
     const { data, error } = await supabase
         .from('baselines')
         .select('*')
@@ -57,7 +57,7 @@ export async function getBaselines(projectId: string, supabase: SupabaseClient =
     return { data, error: null };
 }
 
-export async function deleteBaseline(baselineId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: any }> {
+export async function deleteBaseline(baselineId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: string | null }> {
     const { error } = await supabase
         .from('baselines')
         .delete()

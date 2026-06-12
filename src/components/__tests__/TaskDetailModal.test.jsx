@@ -47,7 +47,7 @@ describe('TaskDetailModal', () => {
         jest.clearAllMocks();
     });
 
-    it('should render task details', () => {
+    it('should render task details', async () => {
         render(
             <TaskDetailModal
                 task={mockTask}
@@ -62,7 +62,9 @@ describe('TaskDetailModal', () => {
             />
         );
 
-        expect(screen.getByDisplayValue('Test Task')).toBeInTheDocument();
+        await waitFor(() => {
+            expect(screen.getByDisplayValue('Test Task')).toBeInTheDocument();
+        });
         expect(screen.getByText('Predecessor Task')).toBeInTheDocument();
         expect(screen.getByText('Successor Task')).toBeInTheDocument();
     });

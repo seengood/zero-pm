@@ -39,7 +39,7 @@ export function usePresence(projectId: string, currentTaskId?: string) {
                     const users: Record<string, PresenceState> = {};
 
                     Object.keys(state).forEach((key) => {
-                        const presences = state[key] as any[];
+                        const presences = state[key] as unknown[];
                         if (presences.length > 0) {
                             users[key] = presences[0] as PresenceState;
                         }

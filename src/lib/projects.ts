@@ -48,10 +48,10 @@ export interface Project {
     owner_name?: string;
     created_at: string;
     updated_at?: string;
-    calendar_settings: any;
+    calendar_settings: Record<string, unknown>;
 }
 
-export async function createProject(input: CreateProjectInput, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project | null; error: any }> {
+export async function createProject(input: CreateProjectInput, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project | null; error: string | null }> {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -79,7 +79,7 @@ export async function createProject(input: CreateProjectInput, supabase: Supabas
     return { data, error: null };
 }
 
-export async function getProjects(supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project[] | null; error: any }> {
+export async function getProjects(supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project[] | null; error: string | null }> {
     const { data, error } = await supabase
         .from('projects')
         .select('*')
@@ -93,7 +93,7 @@ export async function getProjects(supabase: SupabaseClient = defaultSupabase): P
     return { data, error: null };
 }
 
-export async function getProject(id: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project | null; error: any }> {
+export async function getProject(id: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project | null; error: string | null }> {
     const { data: project, error } = await supabase
         .from('projects')
         .select('*')
@@ -121,7 +121,7 @@ export async function getProject(id: string, supabase: SupabaseClient = defaultS
     };
 }
 
-export async function updateProject(id: string, updates: UpdateProjectInput, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project | null; error: any }> {
+export async function updateProject(id: string, updates: UpdateProjectInput, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Project | null; error: string | null }> {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
@@ -149,7 +149,7 @@ export async function updateProject(id: string, updates: UpdateProjectInput, sup
     return { data, error: null };
 }
 
-export async function deleteProject(id: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: any }> {
+export async function deleteProject(id: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: string | null }> {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {

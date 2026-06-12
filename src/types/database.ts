@@ -66,6 +66,9 @@ export interface Baseline {
     project_id: string;
     name: string;
     description: string | null;
-    data: any;
+    data: {
+        tasks: Task[];
+        links: Link[];
+    };
     created_at: string;
 }

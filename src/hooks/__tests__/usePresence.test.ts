@@ -158,7 +158,7 @@ describe('usePresence', () => {
     });
 
     it('should handle leave event without throwing', async () => {
-        let leaveCallback: (payload: any) => void;
+        let leaveCallback: (payload: Record<string, unknown>) => void;
         mockChannel.on.mockImplementation((event, filter, callback) => {
             if (filter.event === 'leave') {
                 leaveCallback = callback;
