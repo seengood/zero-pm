@@ -25,9 +25,38 @@ const config: Config = {
         'src/**/*.{ts,tsx}',
         '!src/**/*.d.ts',
         '!src/**/__tests__/**',
-        '!src/app/layout.tsx',
-        '!src/app/page.tsx',
+        '!src/app/**', // Exclude all app pages
+        '!src/contexts/**', // Exclude contexts (integration test territory)
+        '!src/lib/test-helpers.ts', // Exclude test helpers
+        '!src/types/**', // Exclude type definitions
+        '!src/middleware.ts', // Exclude Next.js middleware
     ],
+    coverageThreshold: {
+        global: {
+            branches: 68,
+            functions: 60,
+            lines: 69,
+            statements: 69,
+        },
+        './src/lib/': {
+            branches: 68,
+            functions: 74,
+            lines: 80,
+            statements: 80,
+        },
+        './src/hooks/': {
+            branches: 55,
+            functions: 57,
+            lines: 55,
+            statements: 55,
+        },
+        './src/components/': {
+            branches: 63,
+            functions: 38,
+            lines: 63,
+            statements: 63,
+        },
+    },
 }
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async
