@@ -140,6 +140,8 @@ jobs:
     
     - name: Run database tests
       run: |
-        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -f supabase/tests/test_runner.sql
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -f supabase/tests/01_auth_security.test.sql
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -f supabase/tests/02_week2_security.test.sql
+        PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -f supabase/tests/rls.test.sql
       env:
         PGPASSWORD: postgres
