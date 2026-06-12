@@ -91,11 +91,17 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
 
 
     useEffect(() => {
+        let isMounted = true;
+        
         async function loadBaselines() {
             const { data } = await getBaselines(projectId);
-            if (data) setBaselines(data);
+            if (data && isMounted) setBaselines(data);
         }
         loadBaselines();
+        
+        return () => {
+            isMounted = false;
+        };
     }, [projectId]);
 
     // 날짜 문자열을 Date 객체로 변환하고 표시용 문자열 추가

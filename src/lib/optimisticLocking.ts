@@ -51,7 +51,7 @@ export async function updateTaskWithOptimisticLock(
 
             // 버전 충돌 시 재시도
             if (data.error === 'Version conflict') {
-                console.warn(
+                console.error(
                     `버전 충돌 감지 (시도 ${retries + 1}/${maxRetries}):`,
                     `현재 버전 ${data.current_version}, 예상 버전 ${data.expected_version}`
                 );
