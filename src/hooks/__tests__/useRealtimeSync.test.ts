@@ -4,7 +4,7 @@ import { useRealtimeSync } from '../useRealtimeSync';
 // Mock Supabase client
 const mockChannel = {
     on: jest.fn().mockReturnThis(),
-    subscribe: jest.fn(() => ({ unsubscribe: jest.fn() })),
+    subscribe: jest.fn(() => mockChannel),
 };
 
 const mockSupabaseClient = {
