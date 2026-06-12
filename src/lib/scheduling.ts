@@ -125,9 +125,14 @@ export function applyConstraint(
             return { start: calculatedStart, end: calculatedEnd };
 
         case CONSTRAINT_TYPES.ALAP:
-            // As late as possible (requires project end date)
-            // For now, use calculated dates
-            // TODO: Implement ALAP with project end date
+            // As late as possible — use CPM late_start if available
+            if (task.late_start != null) {
+                const alapStart = parseToUTC(task.late_start);
+                if (alapStart) {
+                    return { start: alapStart, end: addDaysUTC(alapStart, duration) };
+                }
+            }
+            // CPM not yet run — fall back to calculated dates
             return { start: calculatedStart, end: calculatedEnd };
 
         default:

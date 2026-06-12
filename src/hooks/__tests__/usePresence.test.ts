@@ -157,9 +157,7 @@ describe('usePresence', () => {
         expect(editors.map(u => u.userId)).toEqual(expect.arrayContaining(['user-1', 'user-3']));
     });
 
-    it('should handle leave event', async () => {
-        const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
-
+    it('should handle leave event without throwing', async () => {
         let leaveCallback: (payload: any) => void;
         mockChannel.on.mockImplementation((event, filter, callback) => {
             if (filter.event === 'leave') {
@@ -168,19 +166,18 @@ describe('usePresence', () => {
             return mockChannel;
         });
 
-        renderHook(() => usePresence('project-1'));
+        const { result } = renderHook(() => usePresence('project-1'));
 
         await waitFor(() => {
             expect(mockChannel.on).toHaveBeenCalled();
         });
 
-        act(() => {
-            if (leaveCallback) {
-                leaveCallback({ key: 'user-1', leftPresences: [] });
-            }
-        });
-
-        expect(consoleSpy).toHaveBeenCalledWith('사용자 퇴장:', 'user-1', []);
-        consoleSpy.mockRestore();
+        expect(() => {
+            act(() => {
+                if (leaveCallback) {
+                    leaveCallback({ key: 'user-1', leftPresences: [] });
+                }
+            });
+        }).not.toThrow();
     });
 });

@@ -34,8 +34,6 @@ export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter, 
 
     // Intercept add-link action (triggered by UI link creation)
     api.intercept("add-link", async (params) => {
-        console.log('[Gantt] Intercepted add-link:', params);
-
         const linkData = params.link || params;
         const newLink = {
             project_id: projectId,
@@ -55,8 +53,6 @@ export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter, 
 
     // Intercept update-link action (triggered by UI link modification)
     api.intercept("update-link", async (params) => {
-        console.log('[Gantt] Intercepted update-link:', params);
-
         const linkId = params.id;
         const updates = params.link || {};
 
@@ -77,8 +73,6 @@ export function setupGanttIntercepts(api, { handleTaskUpdate, taskEventEmitter, 
 
     // Intercept delete-link action (triggered by UI link deletion)
     api.intercept("delete-link", async (params) => {
-        console.log('[Gantt] Intercepted delete-link:', params);
-
         const linkId = params.id;
 
         // Find the link before deletion for recalculation

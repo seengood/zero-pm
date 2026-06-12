@@ -70,7 +70,7 @@ BEGIN
     ) VALUES (
         test_user_id,
         'Paul',
-        'admin',
+        'owner',
         NOW(),
         NOW()
     ) ON CONFLICT (id) DO NOTHING;
@@ -110,5 +110,5 @@ INSERT INTO project_members (project_id, user_id, role)
 VALUES (
     '33333333-3333-3333-3333-333333333333',
     '11111111-1111-1111-1111-111111111111',
-    'admin'
+    'owner'
 ) ON CONFLICT (project_id, user_id) DO NOTHING;

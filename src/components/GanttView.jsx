@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Gantt, Willow } from "@svar-ui/react-gantt";
 import { Locale } from "@svar-ui/react-core";
 import "@/styles/gantt-svar.css";
@@ -8,6 +8,8 @@ import "@/styles/gantt-custom.css";
 import { ko } from "@/locales/ko.js";
 import ContextMenu from "./ContextMenu";
 import TaskDetailModal from "./TaskDetailModal";
+import { calculateCPM } from "@/lib/cpm";
+import { saveCPMResults } from "@/lib/optimisticLocking";
 
 const scales = [
     {
@@ -64,6 +66,8 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     const ganttApiRef = useRef(null);
     // Flag to skip our intercept when we're the ones calling exec (prevents infinite loop)
     const isSchedulerUpdateRef = useRef(false);
+    // Timeout ref for debounced CPM recalculation
+    const cpmTimeoutRef = useRef(null);
 
     // Update refs when state changes
     useEffect(() => {
@@ -225,6 +229,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
             await recalculateAffectedTasks(task.id, task);
         }
 
+        debouncedRecalcCPM();
         return task;
     };
 
@@ -241,6 +246,29 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         }),
         [] // Empty deps because tasksRef and linksRef are stable refs
     );
+
+    // Debounced CPM recalculation: runs 600ms after the last triggering call
+    const debouncedRecalcCPM = useCallback(() => {
+        if (cpmTimeoutRef.current) {
+            clearTimeout(cpmTimeoutRef.current);
+        }
+        cpmTimeoutRef.current = setTimeout(async () => {
+            const results = calculateCPM(tasksRef.current, linksRef.current);
+            const resultsArray = Array.from(results.values());
+            await saveCPMResults(resultsArray);
+            setTasks(prev => prev.map(t => {
+                const cpm = results.get(String(t.id));
+                return cpm ? { ...t, ...cpm } : t;
+            }));
+        }, 600);
+    }, []); // stable: reads from refs, not closed-over state
+
+    // Generate dynamic CSS for critical path task bars
+    const criticalStyle = useMemo(() => {
+        const ids = tasks.filter(t => t.is_critical).map(t => t.id);
+        if (!ids.length) return '';
+        return ids.map(id => `.wx-bar[data-id="${id}"] { background-color: #e74c3c !important; border-color: #c0392b !important; }`).join('\n');
+    }, [tasks]);
 
     // Initialize observers using custom hook
     const observersRef = useGanttObservers({
@@ -282,12 +310,14 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         // Emit event - Observer handles DB save, UI update, and auto-scheduling
         await taskEventEmitter.emit('link:created', { link: newLink });
 
+        debouncedRecalcCPM();
         return newLink;
     };
 
     const handleLinkDelete = async (linkId) => {
         // Emit event - Observer handles DB delete and UI update
         await taskEventEmitter.emit('link:deleted', { linkId });
+        debouncedRecalcCPM();
     };
 
     const handleLinkUpdate = async (linkId, updates) => {
@@ -299,6 +329,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         linksRef.current = linksRef.current.map(l => String(l.id) === String(linkId) ? updatedLink : l);
 
         await taskEventEmitter.emit('link:updated', { link: updatedLink, updates });
+        debouncedRecalcCPM();
         return null;
     };
 
@@ -524,6 +555,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
                     />
                 )}
             </div>
+            {criticalStyle && <style>{criticalStyle}</style>}
         </div >
     );
 }

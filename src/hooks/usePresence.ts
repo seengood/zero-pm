@@ -47,11 +47,9 @@ export function usePresence(projectId: string, currentTaskId?: string) {
 
                     setOnlineUsers(users);
                 })
-                .on('presence', { event: 'join' }, ({ key, newPresences }) => {
-                    console.log('사용자 참여:', key, newPresences);
+                .on('presence', { event: 'join' }, ({ key: _key, newPresences: _newPresences }) => {
                 })
-                .on('presence', { event: 'leave' }, ({ key, leftPresences }) => {
-                    console.log('사용자 퇴장:', key, leftPresences);
+                .on('presence', { event: 'leave' }, ({ key: _key, leftPresences: _leftPresences }) => {
                 })
                 .subscribe(async (status) => {
                     if (status === 'SUBSCRIBED') {
