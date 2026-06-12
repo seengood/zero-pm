@@ -186,7 +186,7 @@ export default function CreateProjectModal({ isOpen, onClose }: CreateProjectMod
                         <select
                             id="status"
                             value={status}
-                            onChange={(e) => setStatus(e.target.value as any)}
+                            onChange={(e) => setStatus(e.target.value as 'planning' | 'active' | 'completed' | 'on-hold' | 'cancelled')}
                             style={{
                                 width: '100%',
                                 padding: '0.5rem',

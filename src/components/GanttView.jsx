@@ -243,6 +243,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
     // (Must be after handleTaskUpdate definition)
     // Wrapped in useMemo to prevent Observer reinitialization
     // Dependencies are refs, so they don't change
+    /* eslint-disable react-hooks/refs */
     const recalculateAffectedTasks = React.useMemo(
         () => createRecalculateFunction({
             tasksRef,
@@ -252,6 +253,7 @@ export default function GanttView({ projectId, initialTasks, initialLinks }) {
         }),
         [] // Empty deps because tasksRef and linksRef are stable refs
     );
+    /* eslint-enable react-hooks/refs */
 
     // Debounced CPM recalculation: runs 600ms after the last triggering call
     const debouncedRecalcCPM = useCallback(() => {

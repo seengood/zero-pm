@@ -5,7 +5,9 @@
  * This prevents Turbopack CSS parsing errors in Next.js
  */
 
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const fs = require('fs');
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const path = require('path');
 
 const sourceFile = path.join(__dirname, '../node_modules/@svar-ui/react-gantt/dist/index.css');

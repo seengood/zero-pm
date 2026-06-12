@@ -54,7 +54,7 @@ export default function DeleteConfirmDialog({
                     </h2>
                 </div>
                 <p style={{ marginBottom: '1.5rem', lineHeight: 1.6 }}>
-                    정말 "<strong>{projectTitle}</strong>" 프로젝트를 삭제하시겠습니까?
+                    정말 &quot;<strong>{projectTitle}</strong>&quot; 프로젝트를 삭제하시겠습니까?
                 </p>
                 <div
                     style={{
