@@ -1,5 +1,6 @@
 import { getTasks, createTask, updateTask, deleteTask, updateLink } from '../tasks';
 import { LINK_TYPES } from '@/lib/constants';
+import { Link } from '@/types/database';
 import { SupabaseClient } from '@supabase/supabase-js';
 
 // Mock Supabase client

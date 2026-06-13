@@ -3,10 +3,10 @@ import PresenceIndicator from '../PresenceIndicator';
 
 describe('PresenceIndicator', () => {
     const mockUsers = [
-        { userId: '1', displayName: 'User One', color: '#000' },
-        { userId: '2', displayName: 'User Two', color: '#fff' },
-        { userId: '3', displayName: 'User Three', color: '#ccc' },
-        { userId: '4', displayName: 'User Four', color: '#ddd' },
+        { userId: '1', displayName: 'User One', timestamp: 0 },
+        { userId: '2', displayName: 'User Two', timestamp: 0 },
+        { userId: '3', displayName: 'User Three', timestamp: 0 },
+        { userId: '4', displayName: 'User Four', timestamp: 0 },
     ];
 
     it('should render nothing when no users', () => {
@@ -15,7 +15,7 @@ describe('PresenceIndicator', () => {
     });
 
     it('should render avatar image when provided', () => {
-        const usersWithAvatar = [{ userId: '1', displayName: 'User One', avatarUrl: 'http://example.com/avatar.png', color: '#000' }];
+        const usersWithAvatar = [{ userId: '1', displayName: 'User One', avatarUrl: 'http://example.com/avatar.png', timestamp: 0 }];
         render(<PresenceIndicator users={usersWithAvatar} />);
 
         const img = screen.getByAltText('User One');

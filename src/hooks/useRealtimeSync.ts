@@ -51,6 +51,12 @@ interface GanttApi {
     exec: (command: string, params: Record<string, unknown>) => void;
 }
 
+interface PostgresChangesPayload {
+    eventType: string;
+    new: Record<string, unknown>;
+    old: Record<string, unknown>;
+}
+
 interface UseRealtimeSyncParams {
     projectId: string;
     tasksRef: React.MutableRefObject<Task[]>;
@@ -80,29 +86,29 @@ export function useRealtimeSync({
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'tasks', filter: `project_id=eq.${projectId}` },
-                (payload: Record<string, unknown>) => {
-                    const { eventType, new: newRow, old: oldRow } = payload;
+                (rawPayload: Record<string, unknown>) => {
+                    const { eventType, new: newRow, old: oldRow } = rawPayload as unknown as PostgresChangesPayload;
 
                     if (eventType === 'UPDATE') {
-                        const taskId = String(newRow?.id);
+                        const taskId = String(newRow.id);
                         const localTask = tasksRef.current?.find((t: Task) => String(t.id) === taskId);
 
                         // Skip echo from our own save: compare key scheduling + display fields
                         if (localTask) {
                             const localMs = toMs(localTask.start ?? localTask.start_date);
-                            const remoteMs = toMs(newRow.start_date);
+                            const remoteMs = toMs(newRow.start_date as string | undefined);
                             const sameStart = localMs !== null && localMs === remoteMs;
-                            const sameDuration = localTask.duration === newRow.duration;
-                            const sameText = localTask.text === newRow.text;
+                            const sameDuration = localTask.duration === (newRow.duration as number);
+                            const sameText = localTask.text === (newRow.text as string);
                             if (sameStart && sameDuration && sameText) return;
                         }
 
-                        const dates = buildGanttDates(newRow.start_date, newRow.duration);
+                        const dates = buildGanttDates(newRow.start_date as string, newRow.duration as number);
                         if (!dates) return;
 
                         setTasks((prev: Task[]) => prev.map((t: Task) =>
                             String(t.id) === taskId
-                                ? { ...t, ...newRow, start: dates.start, end: dates.end }
+                                ? { ...t, ...newRow, start: dates.start, end: dates.end } as Task
                                 : t
                         ));
 
@@ -124,10 +130,10 @@ export function useRealtimeSync({
                         const taskId = String(newRow.id);
                         if (tasksRef.current?.find((t: Task) => String(t.id) === taskId)) return;
 
-                        const dates = buildGanttDates(newRow.start_date, newRow.duration);
+                        const dates = buildGanttDates(newRow.start_date as string, newRow.duration as number);
                         if (!dates) return;
 
-                        setTasks((prev: Task[]) => [...prev, { ...newRow, start: dates.start, end: dates.end }]);
+                        setTasks((prev: Task[]) => [...prev, { ...newRow, start: dates.start, end: dates.end } as Task]);
 
                         if (ganttApiRef?.current) {
                             isSchedulerUpdateRef.current = true;
@@ -158,14 +164,14 @@ export function useRealtimeSync({
             .on(
                 'postgres_changes',
                 { event: '*', schema: 'public', table: 'links', filter: `project_id=eq.${projectId}` },
-                (payload: Record<string, unknown>) => {
-                    const { eventType, new: newRow, old: oldRow } = payload;
+                (rawPayload: Record<string, unknown>) => {
+                    const { eventType, new: newRow, old: oldRow } = rawPayload as unknown as PostgresChangesPayload;
 
                     if (eventType === 'INSERT') {
                         const linkId = String(newRow.id);
                         if (linksRef.current?.find((l: Link) => String(l.id) === linkId)) return;
 
-                        setLinks((prev: Link[]) => [...prev, newRow]);
+                        setLinks((prev: Link[]) => [...prev, newRow as Link]);
 
                         if (ganttApiRef?.current) {
                             isSchedulerUpdateRef.current = true;
@@ -193,7 +199,7 @@ export function useRealtimeSync({
 
                     } else if (eventType === 'UPDATE') {
                         setLinks((prev: Link[]) => prev.map((l: Link) =>
-                            String(l.id) === String(newRow.id) ? { ...l, ...newRow } : l
+                            String(l.id) === String(newRow.id) ? { ...l, ...newRow } as Link : l
                         ));
                     }
                 }

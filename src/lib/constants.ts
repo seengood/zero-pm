@@ -3,7 +3,7 @@ export const LINK_TYPES = {
     START_TO_START: 's2s',
     FINISH_TO_FINISH: 'e2e',
     START_TO_FINISH: 's2e'
-};
+} as const;
 
 export const LINK_TYPE_LABELS = {
     [LINK_TYPES.FINISH_TO_START]: 'FS (Finish-to-Start)',

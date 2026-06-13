@@ -54,7 +54,7 @@ export class DBObserver {
     }
 
     async handleTaskUpdated(event: TaskEvent): Promise<void> {
-        const { task } = event.payload;
+        const task = event.payload.task as Task;
 
         // Get current task from ref if available
         const currentTask = this.tasksRef?.current?.find((t: Task) => String(t.id) === String(task.id));
@@ -73,30 +73,30 @@ export class DBObserver {
 
         // Prepare updates for database
         const updates: TaskUpdates = {};
-        if (task.text !== undefined) updates.text = task.text;
+        if (task.text !== undefined) updates.text = task.text as string;
         if (task.start !== undefined) {
-            const d = new Date(task.start);
+            const d = new Date(task.start as string | Date);
             const normalized = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
             updates.start_date = toISOString(normalized);
         }
-        if (task.start_date !== undefined) updates.start_date = mergedTask.start_date;
+        if (task.start_date !== undefined) updates.start_date = mergedTask.start_date as string;
 
-        if (mergedTask.duration !== currentTask.duration) updates.duration = mergedTask.duration;
+        if (mergedTask.duration !== currentTask.duration) updates.duration = mergedTask.duration as number;
         if (task.parent !== undefined) updates.parent_id = task.parent ? String(task.parent) : null;
-        if (task.progress !== undefined) (updates as Record<string, unknown>).progress = mergedTask.progress;
-        if (task.type !== undefined) (updates as Record<string, unknown>).type = task.type;
-        if (task.description !== undefined) (updates as Record<string, unknown>).description = task.description;
-        if (task.constraint_type !== undefined) (updates as Record<string, unknown>).constraint_type = task.constraint_type;
+        if (task.progress !== undefined) updates.progress = mergedTask.progress;
+        if (task.type !== undefined) updates.type = task.type;
+        if (task.description !== undefined) updates.description = task.description;
+        if (task.constraint_type !== undefined) updates.constraint_type = task.constraint_type;
         if (task.constraint_date !== undefined) {
-            (updates as Record<string, unknown>).constraint_date = task.constraint_date ? toISOString(task.constraint_date) : null;
+            updates.constraint_date = task.constraint_date ? toISOString(task.constraint_date as string | Date) : null;
         }
-        if (task.sort_order !== undefined) (updates as Record<string, unknown>).sort_order = task.sort_order;
+        if (task.sort_order !== undefined) updates.sort_order = task.sort_order;
 
         if (Object.keys(updates).length === 0) return;
 
         const result = await updateTaskWithOptimisticLock(
             String(task.id),
-            currentTask.version ?? 1,
+            (currentTask.version ?? 1) as number,
             updates
         );
         if (!result.success) {
@@ -112,9 +112,9 @@ export class DBObserver {
     }
 
     async handleTaskCreated(event: TaskEvent): Promise<void> {
-        const { task } = event.payload;
+        const task = event.payload.task as Task;
 
-        const { data, error } = await createTask(task);
+        const { data, error } = await createTask(task as Parameters<typeof createTask>[0]);
         if (error) {
             console.error('[DBObserver] Failed to create task:', error);
             throw error;
@@ -126,7 +126,7 @@ export class DBObserver {
     }
 
     async handleTaskDeleted(event: TaskEvent): Promise<void> {
-        const { taskId } = event.payload;
+        const taskId = event.payload.taskId as string;
 
         const { error } = await deleteTask(taskId);
         if (error) {
@@ -136,9 +136,9 @@ export class DBObserver {
     }
 
     async handleLinkCreated(event: TaskEvent): Promise<void> {
-        const { link } = event.payload;
+        const link = event.payload.link as Link;
 
-        const { data, error } = await createLink(link);
+        const { data, error } = await createLink(link as Parameters<typeof createLink>[0]);
         if (error) {
             console.error('[DBObserver] Failed to create link:', error);
             throw error;
@@ -150,8 +150,9 @@ export class DBObserver {
     }
 
     async handleLinkUpdated(event: TaskEvent): Promise<void> {
-        const { link, updates } = event.payload;
-        const { error } = await updateLink(String(link.id), updates);
+        const link = event.payload.link as Link;
+        const updates = event.payload.updates as Partial<Link>;
+        const { error } = await updateLink(String(link.id), updates as Parameters<typeof updateLink>[1]);
         if (error) {
             console.error('[DBObserver] Failed to update link:', error);
             throw error;
@@ -159,7 +160,7 @@ export class DBObserver {
     }
 
     async handleLinkDeleted(event: TaskEvent): Promise<void> {
-        const { linkId } = event.payload;
+        const linkId = event.payload.linkId as string;
         const { error } = await deleteLink(linkId);
         if (error) {
             console.error('[DBObserver] Failed to delete link:', error);
@@ -180,7 +181,7 @@ export class UIObserver {
     ) { }
 
     async handleTaskUpdated(event: TaskEvent): Promise<void> {
-        const { task } = event.payload;
+        const task = event.payload.task as Task;
 
         this.setTasks((prev: Task[]) => prev.map(t =>
             String(t.id) === String(task.id) ? { ...t, ...task, version: (t.version || 1) + 1 } : t
@@ -192,29 +193,29 @@ export class UIObserver {
     }
 
     async handleTaskCreated(event: TaskEvent): Promise<void> {
-        const { task } = event.payload;
+        const task = event.payload.task as Task;
         this.setTasks(prev => [...prev, task]);
     }
 
     async handleTaskDeleted(event: TaskEvent): Promise<void> {
-        const { taskId } = event.payload;
+        const taskId = event.payload.taskId as string;
         this.setTasks(prev => prev.filter(t => String(t.id) !== String(taskId)));
     }
 
     async handleLinkCreated(event: TaskEvent): Promise<void> {
-        const { link } = event.payload;
+        const link = event.payload.link as Link;
         this.setLinks(prev => [...prev, link]);
     }
 
     async handleLinkUpdated(event: TaskEvent): Promise<void> {
-        const { link } = event.payload;
+        const link = event.payload.link as Link;
         this.setLinks(prev => prev.map(l =>
             String(l.id) === String(link.id) ? link : l
         ));
     }
 
     async handleLinkDeleted(event: TaskEvent): Promise<void> {
-        const { linkId } = event.payload;
+        const linkId = event.payload.linkId as string;
         this.setLinks(prev => prev.filter(l => String(l.id) !== String(linkId)));
     }
 }
@@ -232,27 +233,28 @@ export class ScheduleObserver {
     ) { }
 
     async handleTaskUpdated(event: TaskEvent): Promise<void> {
-        const { task, changesAffectSchedule } = event.payload;
+        const task = event.payload.task as Task;
+        const changesAffectSchedule = event.payload.changesAffectSchedule as boolean;
         if (!changesAffectSchedule) return;
-        await this.recalculateAffectedTasks(task.id);
+        await this.recalculateAffectedTasks(String(task.id));
     }
 
     async handleLinkCreated(event: TaskEvent): Promise<void> {
-        const { link } = event.payload;
-        await this.recalculateAffectedTasks(link.source);
+        const link = event.payload.link as Link;
+        await this.recalculateAffectedTasks(String(link.source));
     }
 
     async handleLinkUpdated(event: TaskEvent): Promise<void> {
-        const { link } = event.payload;
-        await this.recalculateAffectedTasks(link.source);
+        const link = event.payload.link as Link;
+        await this.recalculateAffectedTasks(String(link.source));
     }
 
     async handleLinkDeleted(event: TaskEvent): Promise<void> {
-        const { link } = event.payload;
+        const link = event.payload.link as Link | undefined;
         if (link) {
             // Source side: re-propagate successors; target side: may move earlier
-            await this.recalculateAffectedTasks(link.source);
-            await this.recalculateAffectedTasks(link.target);
+            await this.recalculateAffectedTasks(String(link.source));
+            await this.recalculateAffectedTasks(String(link.target));
         }
     }
 

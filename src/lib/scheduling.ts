@@ -1,10 +1,21 @@
-import { Task } from '@/types/database';
 import { LINK_TYPES, CONSTRAINT_TYPES } from '@/lib/constants';
 import { parseToUTC, addDaysUTC } from '@/lib/dateUtils';
 
+interface SchedulingTask {
+    id?: string | number;
+    start_date?: string;
+    start?: Date | string;
+    end_date?: string;
+    end?: Date | string;
+    duration?: number;
+    constraint_type?: string | null;
+    constraint_date?: string | null;
+    late_start?: string | null;
+}
+
 export function calculateSuccessorDate(
-    predecessor: Task,
-    successor: Task,
+    predecessor: SchedulingTask,
+    successor: SchedulingTask,
     linkType: string,
     lag: number = 0
 ): Date | null {
@@ -73,7 +84,7 @@ export function calculateEndDate(startDate: Date, duration: number): Date {
  * Returns adjusted start and end dates based on constraint type
  */
 export function applyConstraint(
-    task: Task,
+    task: SchedulingTask,
     calculatedStart: Date,
     calculatedEnd: Date
 ): { start: Date; end: Date } {

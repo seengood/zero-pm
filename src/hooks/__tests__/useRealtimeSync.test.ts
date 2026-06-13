@@ -1,11 +1,34 @@
 import { renderHook, act } from '@testing-library/react';
 import { useRealtimeSync } from '../useRealtimeSync';
 
+interface MockTask {
+    id: string;
+    start_date?: string;
+    duration?: number;
+    text?: string;
+    [key: string]: unknown;
+}
+
+interface MockLink {
+    id: string;
+    source: string;
+    target: string;
+    type?: string;
+    lag?: number;
+    [key: string]: unknown;
+}
+
+interface MockChannelType {
+    on: jest.Mock;
+    subscribe: jest.Mock;
+}
+
 // Mock Supabase client
-const mockChannel = {
+const mockChannel: MockChannelType = {
     on: jest.fn().mockReturnThis(),
-    subscribe: jest.fn(() => mockChannel),
+    subscribe: jest.fn(),
 };
+mockChannel.subscribe.mockReturnValue(mockChannel);
 
 const mockSupabaseClient = {
     channel: jest.fn(() => mockChannel),
@@ -18,7 +41,7 @@ jest.mock('@/lib/supabase/client', () => ({
 
 // Mock dateUtils
 jest.mock('@/lib/dateUtils', () => ({
-    parseToUTC: jest.fn((dateStr) => {
+    parseToUTC: jest.fn((dateStr: string): Date | null => {
         if (!dateStr) return null;
         const date = new Date(dateStr);
         return isNaN(date.getTime()) ? null : date;
@@ -26,8 +49,8 @@ jest.mock('@/lib/dateUtils', () => ({
 }));
 
 describe('useRealtimeSync', () => {
-    const mockTasksRef = { current: [] };
-    const mockLinksRef = { current: [] };
+    const mockTasksRef: { current: MockTask[] } = { current: [] };
+    const mockLinksRef: { current: MockLink[] } = { current: [] };
     const mockSetTasks = jest.fn();
     const mockSetLinks = jest.fn();
     const mockGanttApiRef = { current: { exec: jest.fn() } };

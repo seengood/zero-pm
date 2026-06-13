@@ -40,7 +40,7 @@ describe('projects', () => {
         it('should return error if user is not logged in', async () => {
             (mockSupabase.auth.getUser as jest.Mock).mockResolvedValue({ data: { user: null } });
 
-            const result = await createProject({ title: 'New Project' }, mockSupabase);
+            const result = await createProject({ title: 'New Project', status: 'planning' as const }, mockSupabase);
 
             expect(result.error).toBe('로그인이 필요합니다.');
             expect(result.data).toBeNull();
@@ -57,7 +57,7 @@ describe('projects', () => {
             const mockInsert = jest.fn().mockReturnValue({ select: mockSelect });
             (mockSupabase.from as jest.Mock).mockReturnValue({ insert: mockInsert });
 
-            const result = await createProject({ title: 'New Project' }, mockSupabase);
+            const result = await createProject({ title: 'New Project', status: 'planning' as const }, mockSupabase);
 
             expect(result.data).toEqual(mockProject);
             expect(result.error).toBeNull();

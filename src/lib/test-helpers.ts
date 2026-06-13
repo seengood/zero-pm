@@ -100,7 +100,7 @@ export function getTestUserInfo() {
 
 // 개발 환경에서만 window 객체에 노출
 if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-    (window as Record<string, unknown>).testHelpers = {
+    (window as unknown as Record<string, unknown>).testHelpers = {
         loginAsTestUser,
         logout,
         getCurrentSession,
