@@ -1,4 +1,4 @@
-const en = {
+export const en = {
   lang: "en-US",
 
   //calendar

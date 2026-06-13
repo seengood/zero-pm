@@ -8,7 +8,8 @@ import { calculateSuccessorDate, calculateEndDate } from '../scheduling';
 // Mock the scheduling functions
 jest.mock('../scheduling', () => ({
     calculateSuccessorDate: jest.fn(),
-    calculateEndDate: jest.fn()
+    calculateEndDate: jest.fn(),
+    applyConstraint: jest.fn((task, start, end) => ({ start, end })),
 }));
 
 describe('ganttScheduler', () => {

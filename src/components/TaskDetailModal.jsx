@@ -111,16 +111,19 @@ export default function TaskDetailModal({
                 }
             }
 
-            setFormData({
-                text: task.text || '',
-                description: task.description || '',
-                start_date: startDateStr,
-                duration: task.duration || 1,
-                progress: (task.progress || 0) * 100,
-                type: task.type || 'task',
-                constraint_type: task.constraint_type || 'asap',
-                constraint_date: task.constraint_date ? formatDateForDisplay(task.constraint_date) : ''
-            });
+            // Defer setState to avoid cascading renders
+            setTimeout(() => {
+                setFormData({
+                    text: task.text || '',
+                    description: task.description || '',
+                    start_date: startDateStr,
+                    duration: task.duration || 1,
+                    progress: (task.progress || 0) * 100,
+                    type: task.type || 'task',
+                    constraint_type: task.constraint_type || 'asap',
+                    constraint_date: task.constraint_date ? formatDateForDisplay(task.constraint_date) : ''
+                });
+            }, 0);
         }
     }, [task]);
 

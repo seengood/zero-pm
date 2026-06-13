@@ -70,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setProfile(data);
             } else {
                 // 프로필이 없으면 자동 생성
-                console.log('프로필이 없습니다. 자동 생성합니다...');
+
                 const { data: user } = await supabase.auth.getUser();
                 if (user.user) {
                     const { error: insertError } = await supabase

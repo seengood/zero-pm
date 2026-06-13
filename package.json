@@ -4,12 +4,16 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
-    "build": "next build",
+    "build": "npm run copy:gantt-css && next build",
+    "build:prod": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "jest",
+    "test": "eslint && jest",
     "test:watch": "jest --watch",
-    "test:auth": "node -r dotenv/config tests/auth.test.js dotenv_config_path=.env.local"
+    "test:auth": "node -r dotenv/config tests/auth.test.js dotenv_config_path=.env.local",
+    "test:e2e": "playwright test",
+    "copy:gantt-css": "node scripts/copy-gantt-css.js",
+    "postinstall": "npm run copy:gantt-css"
   },
   "dependencies": {
     "@supabase/auth-helpers-nextjs": "^0.15.0",

@@ -1,10 +1,10 @@
-import { Task, ConstraintType } from '@/types/database';
+import { Task } from '@/types/database';
 import { LINK_TYPES, CONSTRAINT_TYPES } from '@/lib/constants';
 import { parseToUTC, addDaysUTC } from '@/lib/dateUtils';
 
 export function calculateSuccessorDate(
-    predecessor: any,
-    successor: any,
+    predecessor: Task,
+    successor: Task,
     linkType: string,
     lag: number = 0
 ): Date | null {
@@ -125,9 +125,14 @@ export function applyConstraint(
             return { start: calculatedStart, end: calculatedEnd };
 
         case CONSTRAINT_TYPES.ALAP:
-            // As late as possible (requires project end date)
-            // For now, use calculated dates
-            // TODO: Implement ALAP with project end date
+            // As late as possible — use CPM late_start if available
+            if (task.late_start != null) {
+                const alapStart = parseToUTC(task.late_start);
+                if (alapStart) {
+                    return { start: alapStart, end: addDaysUTC(alapStart, duration) };
+                }
+            }
+            // CPM not yet run — fall back to calculated dates
             return { start: calculatedStart, end: calculatedEnd };
 
         default:

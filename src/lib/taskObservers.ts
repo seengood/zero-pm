@@ -4,31 +4,64 @@
  */
 
 import { TaskEvent } from './taskEventEmitter';
-import { updateTask, createTask, deleteTask, createLink, updateLink, deleteLink } from './tasks';
+import { createTask, deleteTask, createLink, updateLink, deleteLink } from './tasks';
 import { updateTaskWithOptimisticLock } from './optimisticLocking';
 import { toISOString } from './dateUtils';
 import { calculateTaskDuration } from './taskUpdateUtils';
+
+interface TaskRef {
+    current: Task[];
+}
+
+interface Task {
+    id: string | number;
+    text?: string;
+    start?: Date | string;
+    start_date?: string;
+    end?: Date | string;
+    duration?: number;
+    version?: number;
+    parent?: string | number | null;
+    [key: string]: unknown;
+}
+
+interface TaskUpdates {
+    text?: string;
+    start_date?: string;
+    duration?: number;
+    parent_id?: string | null;
+    [key: string]: unknown;
+}
+
+interface Link {
+    id: string | number;
+    source: string | number;
+    target: string | number;
+    type?: string;
+    lag?: number;
+    [key: string]: unknown;
+}
 
 /**
  * Database Observer
  * Persists task changes to the database
  */
 export class DBObserver {
-    private tasksRef: any;
+    private tasksRef: TaskRef | null;
 
-    constructor(tasksRef?: any) {
-        this.tasksRef = tasksRef;
+    constructor(tasksRef?: TaskRef) {
+        this.tasksRef = tasksRef || null;
     }
 
     async handleTaskUpdated(event: TaskEvent): Promise<void> {
         const { task } = event.payload;
 
         // Get current task from ref if available
-        const currentTask = this.tasksRef?.current?.find((t: any) => String(t.id) === String(task.id));
+        const currentTask = this.tasksRef?.current?.find((t: Task) => String(t.id) === String(task.id));
         if (!currentTask) return;
 
         // Merge current task with updates
-        let mergedTask = { ...currentTask, ...task };
+        const mergedTask = { ...currentTask, ...task };
 
         // Calculate duration using scheduling utility
         const calculatedDuration = calculateTaskDuration(task, currentTask);
@@ -39,7 +72,7 @@ export class DBObserver {
         }
 
         // Prepare updates for database
-        const updates: any = {};
+        const updates: TaskUpdates = {};
         if (task.text !== undefined) updates.text = task.text;
         if (task.start !== undefined) {
             const d = new Date(task.start);
@@ -50,14 +83,14 @@ export class DBObserver {
 
         if (mergedTask.duration !== currentTask.duration) updates.duration = mergedTask.duration;
         if (task.parent !== undefined) updates.parent_id = task.parent ? String(task.parent) : null;
-        if (task.progress !== undefined) updates.progress = mergedTask.progress;
-        if (task.type !== undefined) updates.type = task.type;
-        if (task.description !== undefined) updates.description = task.description;
-        if (task.constraint_type !== undefined) updates.constraint_type = task.constraint_type;
+        if (task.progress !== undefined) (updates as Record<string, unknown>).progress = mergedTask.progress;
+        if (task.type !== undefined) (updates as Record<string, unknown>).type = task.type;
+        if (task.description !== undefined) (updates as Record<string, unknown>).description = task.description;
+        if (task.constraint_type !== undefined) (updates as Record<string, unknown>).constraint_type = task.constraint_type;
         if (task.constraint_date !== undefined) {
-            updates.constraint_date = task.constraint_date ? toISOString(task.constraint_date) : null;
+            (updates as Record<string, unknown>).constraint_date = task.constraint_date ? toISOString(task.constraint_date) : null;
         }
-        if (task.sort_order !== undefined) updates.sort_order = task.sort_order;
+        if (task.sort_order !== undefined) (updates as Record<string, unknown>).sort_order = task.sort_order;
 
         if (Object.keys(updates).length === 0) return;
 
@@ -72,7 +105,7 @@ export class DBObserver {
         }
         // tasksRef에 새 버전 즉시 반영 — 빠른 연속 저장 시 불필요한 version conflict 방지
         if (result.newVersion !== undefined && this.tasksRef?.current) {
-            this.tasksRef.current = this.tasksRef.current.map((t: any) =>
+            this.tasksRef.current = this.tasksRef.current.map((t: Task) =>
                 String(t.id) === String(task.id) ? { ...t, version: result.newVersion } : t
             );
         }
@@ -141,19 +174,19 @@ export class DBObserver {
  */
 export class UIObserver {
     constructor(
-        private setTasks: React.Dispatch<React.SetStateAction<any[]>>,
-        private setEditingTask: React.Dispatch<React.SetStateAction<any | null>>,
-        private setLinks: React.Dispatch<React.SetStateAction<any[]>>
+        private setTasks: React.Dispatch<React.SetStateAction<Task[]>>,
+        private setEditingTask: React.Dispatch<React.SetStateAction<Task | null>>,
+        private setLinks: React.Dispatch<React.SetStateAction<Link[]>>
     ) { }
 
     async handleTaskUpdated(event: TaskEvent): Promise<void> {
         const { task } = event.payload;
 
-        this.setTasks((prev: any[]) => prev.map(t =>
+        this.setTasks((prev: Task[]) => prev.map(t =>
             String(t.id) === String(task.id) ? { ...t, ...task, version: (t.version || 1) + 1 } : t
         ));
 
-        this.setEditingTask((prev: any | null) =>
+        this.setEditingTask((prev: Task | null) =>
             prev && String(prev.id) === String(task.id) ? { ...prev, ...task } : prev
         );
     }
@@ -192,9 +225,9 @@ export class UIObserver {
  */
 export class ScheduleObserver {
     constructor(
-        private getTasks: () => any[],
-        private getLinks: () => any[],
-        private emitTaskUpdate: (task: any, updates: any) => Promise<void>,
+        private getTasks: () => Task[],
+        private getLinks: () => Link[],
+        private emitTaskUpdate: (task: Task, updates: Record<string, unknown>) => Promise<void>,
         private recalculateCallback?: (taskId: string) => Promise<void>
     ) { }
 

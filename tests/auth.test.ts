@@ -42,10 +42,6 @@ function logInfo(message: string) {
     log(`ℹ️  ${message}`, 'blue');
 }
 
-function logWarning(message: string) {
-    log(`⚠️  ${message}`, 'yellow');
-}
-
 // 테스트 결과 추적
 let totalTests = 0;
 let passedTests = 0;
@@ -68,7 +64,7 @@ async function runTest(name: string, testFn: () => Promise<void>) {
 
 // 테스트 1: Supabase 연결 확인
 async function testSupabaseConnection() {
-    const { data, error } = await supabase.from('projects').select('count');
+    const { error } = await supabase.from('projects').select('count');
     if (error && error.code !== 'PGRST116') {
         // PGRST116은 "no rows returned" 오류로 정상
         throw new Error(`Supabase 연결 실패: ${error.message}`);
@@ -132,7 +128,7 @@ async function testUserProfileRLS() {
     }
 
     // 자신의 프로필 조회 (성공해야 함)
-    const { data: ownProfile, error: ownError } = await supabase
+    const { error: ownError } = await supabase
         .from('user_profiles')
         .select('*')
         .eq('id', user.id)

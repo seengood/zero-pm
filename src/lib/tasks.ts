@@ -5,7 +5,7 @@ import { Task, Link } from '@/types/database';
 // Create a default client instance for browser use
 const defaultSupabase = createClient();
 
-export async function getTasks(projectId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task[] | null; error: any }> {
+export async function getTasks(projectId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task[] | null; error: string | null }> {
     const { data, error } = await supabase
         .from('tasks')
         .select('*')
@@ -20,7 +20,7 @@ export async function getTasks(projectId: string, supabase: SupabaseClient = def
     return { data, error: null };
 }
 
-export async function getLinks(projectId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Link[] | null; error: any }> {
+export async function getLinks(projectId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Link[] | null; error: string | null }> {
     const { data, error } = await supabase
         .from('links')
         .select('*')
@@ -34,7 +34,7 @@ export async function getLinks(projectId: string, supabase: SupabaseClient = def
     return { data, error: null };
 }
 
-export async function createTask(task: Partial<Task>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task | null; error: any }> {
+export async function createTask(task: Partial<Task>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task | null; error: string | null }> {
     const { data, error } = await supabase
         .from('tasks')
         .insert(task)
@@ -49,7 +49,7 @@ export async function createTask(task: Partial<Task>, supabase: SupabaseClient =
     return { data, error: null };
 }
 
-export async function updateTask(taskId: string, updates: Partial<Task>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task | null; error: any }> {
+export async function updateTask(taskId: string, updates: Partial<Task>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Task | null; error: string | null }> {
     const { data, error } = await supabase
         .from('tasks')
         .update(updates)
@@ -65,7 +65,7 @@ export async function updateTask(taskId: string, updates: Partial<Task>, supabas
     return { data, error: null };
 }
 
-export async function deleteTask(taskId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: any }> {
+export async function deleteTask(taskId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: string | null }> {
     const { error } = await supabase
         .from('tasks')
         .delete()
@@ -79,7 +79,7 @@ export async function deleteTask(taskId: string, supabase: SupabaseClient = defa
     return { success: true, error: null };
 }
 
-export async function createLink(link: Partial<Link>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Link | null; error: any }> {
+export async function createLink(link: Partial<Link>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Link | null; error: string | null }> {
     const { data, error } = await supabase
         .from('links')
         .insert(link)
@@ -94,7 +94,7 @@ export async function createLink(link: Partial<Link>, supabase: SupabaseClient =
     return { data, error: null };
 }
 
-export async function deleteLink(linkId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: any }> {
+export async function deleteLink(linkId: string, supabase: SupabaseClient = defaultSupabase): Promise<{ success: boolean; error: string | null }> {
     const { error } = await supabase
         .from('links')
         .delete()
@@ -108,7 +108,7 @@ export async function deleteLink(linkId: string, supabase: SupabaseClient = defa
     return { success: true, error: null };
 }
 
-export async function updateLink(linkId: string, updates: Partial<Link>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Link | null; error: any }> {
+export async function updateLink(linkId: string, updates: Partial<Link>, supabase: SupabaseClient = defaultSupabase): Promise<{ data: Link | null; error: string | null }> {
     const { data, error } = await supabase
         .from('links')
         .update(updates)

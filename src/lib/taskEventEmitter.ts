@@ -13,7 +13,7 @@ export type TaskEventType =
 
 export interface TaskEvent {
     type: TaskEventType;
-    payload: any;
+    payload: Record<string, unknown>;
     timestamp: number;
 }
 
@@ -40,7 +40,7 @@ class TaskEventEmitter {
     /**
      * Emit an event to all registered listeners
      */
-    async emit(eventType: TaskEventType, payload: any): Promise<void> {
+    async emit(eventType: TaskEventType, payload: Record<string, unknown>): Promise<void> {
         const event: TaskEvent = {
             type: eventType,
             payload,
@@ -49,18 +49,25 @@ class TaskEventEmitter {
 
         const listeners = this.listeners.get(eventType);
         if (!listeners || listeners.size === 0) {
-            console.log(`No listeners for event: ${eventType}`);
             return;
         }
 
-        console.log(`Emitting event: ${eventType}`, payload);
+        // Execute all listeners — wrap each call so a synchronous throw is
+        // captured as a rejected promise instead of propagating out of map().
+        const promises = Array.from(listeners).map(listener => {
+            try {
+                return Promise.resolve(listener(event));
+            } catch (err) {
+                return Promise.reject(err);
+            }
+        });
 
-        // Execute all listeners
-        const promises = Array.from(listeners).map(listener =>
-            Promise.resolve(listener(event))
-        );
-
-        await Promise.all(promises);
+        const results = await Promise.allSettled(promises);
+        results.forEach(result => {
+            if (result.status === 'rejected') {
+                console.error(`[TaskEventEmitter] Listener failed for event: ${eventType}`, result.reason);
+            }
+        });
     }
 
     /**

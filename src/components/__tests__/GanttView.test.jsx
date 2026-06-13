@@ -1,6 +1,11 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, act } from '@testing-library/react';
 import GanttView from '../GanttView';
+
+// Mock getBaselines to avoid async state updates during render
+jest.mock('@/lib/baselines', () => ({
+    getBaselines: jest.fn().mockResolvedValue({ data: [] }),
+}));
 
 // Mock external libraries
 jest.mock('@svar-ui/react-gantt', () => ({
@@ -68,12 +73,16 @@ describe('GanttView', () => {
         jest.clearAllMocks();
     });
 
-    it('should render loading state initially', () => {
-        render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+    it('should render loading state initially', async () => {
+        await act(async () => {
+            render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        });
     });
 
     it('should render Gantt component with processed tasks after mount', async () => {
-        render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        await act(async () => {
+            render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        });
 
         await waitFor(() => {
             expect(screen.getByTestId('mock-gantt')).toBeInTheDocument();
@@ -92,10 +101,14 @@ describe('GanttView', () => {
     it('should call createTask when a new task is created', async () => {
         (createTask).mockResolvedValue({ data: { id: 'new-id', text: 'New Task' }, error: null });
 
-        render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        await act(async () => {
+            render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        });
         await waitFor(() => expect(screen.getByTestId('mock-gantt')).toBeInTheDocument());
 
-        screen.getByTestId('btn-create-task').click();
+        await act(async () => {
+            screen.getByTestId('btn-create-task').click();
+        });
 
         await waitFor(() => {
             expect(createTask).toHaveBeenCalledWith(expect.objectContaining({
@@ -106,10 +119,14 @@ describe('GanttView', () => {
     });
 
     it('should call updateTask when a task is updated', async () => {
-        render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        await act(async () => {
+            render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        });
         await waitFor(() => expect(screen.getByTestId('mock-gantt')).toBeInTheDocument());
 
-        screen.getByTestId('btn-update-task').click();
+        await act(async () => {
+            screen.getByTestId('btn-update-task').click();
+        });
 
         await waitFor(() => {
             expect(updateTaskWithOptimisticLock).toHaveBeenCalledWith(
@@ -133,12 +150,16 @@ describe('GanttView', () => {
         updateLink.mockResolvedValue({ data: { id: 'l1', type: 's2s', lag: 0 }, error: null });
         // updateTaskWithOptimisticLock is already mocked at the module level
 
-        render(<GanttView projectId="p1" initialTasks={initialTasks} initialLinks={initialLinks} />);
+        await act(async () => {
+            render(<GanttView projectId="p1" initialTasks={initialTasks} initialLinks={initialLinks} />);
+        });
 
         await waitFor(() => expect(screen.getByTestId('mock-gantt')).toBeInTheDocument());
 
-        // Trigger the onLinkUpdate callback from the mocked Gantt component
-        screen.getByTestId('btn-update-link').click();
+        // Trigger the onLinkUpdate callback from the mocked Gantt component within act()
+        await act(async () => {
+            screen.getByTestId('btn-update-link').click();
+        });
 
         await waitFor(() => {
             // Expect updateLink to be called with the new link data
@@ -159,10 +180,14 @@ describe('GanttView', () => {
     it('should call deleteTask when a task is deleted', async () => {
         (deleteTask).mockResolvedValue({ success: true, error: null });
 
-        render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        await act(async () => {
+            render(<GanttView projectId={projectId} initialTasks={mockTasks} initialLinks={mockLinks} />);
+        });
         await waitFor(() => expect(screen.getByTestId('mock-gantt')).toBeInTheDocument());
 
-        screen.getByTestId('btn-delete-task').click();
+        await act(async () => {
+            screen.getByTestId('btn-delete-task').click();
+        });
 
         await waitFor(() => {
             expect(deleteTask).toHaveBeenCalledWith('1');
@@ -171,7 +196,9 @@ describe('GanttView', () => {
 
     it('should handle tasks without end date', async () => {
         const tasks = [{ id: 3, text: 'Task 3', start: new Date('2023-02-01'), duration: 1 }];
-        render(<GanttView projectId={projectId} initialTasks={tasks} initialLinks={[]} />);
+        await act(async () => {
+            render(<GanttView projectId={projectId} initialTasks={tasks} initialLinks={[]} />);
+        });
 
         await waitFor(() => {
             expect(screen.getByTestId('task-3')).toBeInTheDocument();

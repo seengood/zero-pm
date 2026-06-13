@@ -26,7 +26,7 @@ describe('yjs', () => {
 
     describe('getYjsDoc', () => {
         it('should create a new doc and provider if not exists', () => {
-            const { doc, provider } = getYjsDoc('room-1');
+            const { doc } = getYjsDoc('room-1');
 
             expect(doc).toBeInstanceOf(Y.Doc);
             expect(WebsocketProvider).toHaveBeenCalledTimes(1);

@@ -1,5 +1,5 @@
 
-import { calculateSuccessorDate, calculateEndDate } from '../scheduling';
+import { calculateSuccessorDate } from '../scheduling';
 import { LINK_TYPES } from '../constants';
 
 describe('calculateSuccessorDate - Specific Scenarios', () => {

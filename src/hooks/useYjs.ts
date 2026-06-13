@@ -13,8 +13,11 @@ export function useYjs(projectId: string) {
 
         const { doc: yDoc, provider: yProvider } = getYjsDoc(projectId);
 
-        setDoc(yDoc);
-        setProvider(yProvider);
+        // Defer setState to avoid cascading renders
+        setTimeout(() => {
+            setDoc(yDoc);
+            setProvider(yProvider);
+        }, 0);
 
         const onSync = (isSynced: boolean) => {
             setSynced(isSynced);

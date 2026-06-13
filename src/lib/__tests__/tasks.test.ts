@@ -1,4 +1,4 @@
-import { getTasks, getLinks, createTask, updateTask, deleteTask, createLink, updateLink, deleteLink } from '../tasks';
+import { getTasks, createTask, updateTask, deleteTask, updateLink } from '../tasks';
 import { LINK_TYPES } from '@/lib/constants';
 import { SupabaseClient } from '@supabase/supabase-js';
 
@@ -119,7 +119,7 @@ describe('Tasks Library', () => {
     describe('updateLink', () => {
         it('should update a link', async () => {
             const linkId = '1';
-            const updates: any = { type: LINK_TYPES.START_TO_START, lag: 2 };
+            const updates: Partial<Link> = { type: LINK_TYPES.START_TO_START, lag: 2 };
             const updatedLink = { id: linkId, ...updates };
             mockSingle.mockResolvedValue({ data: updatedLink, error: null });
 

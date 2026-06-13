@@ -60,3 +60,9 @@
 .wx-table .wx-grid .wx-body .wx-cell {
     border-bottom: 1px solid var(--wx-gantt-border-color) !important;
 }
+
+/* Critical path task bar styling */
+.wx-critical {
+    background-color: #e74c3c !important;
+    border-color: #c0392b !important;
+}

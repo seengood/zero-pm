@@ -1,7 +1,8 @@
 // 환경 변수 로드 (가장 먼저)
-require('dotenv').config({ path: '.env.local' });
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
-const { createClient } = require('@supabase/supabase-js');
+import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -66,7 +67,7 @@ async function runTest(name, testFn) {
 
 // 테스트 1: Supabase 연결
 async function testSupabaseConnection() {
-    const { data, error } = await supabase.from('projects').select('count');
+    const { error } = await supabase.from('projects').select('count');
     if (error && error.code !== 'PGRST116') {
         throw new Error(`Supabase 연결 실패: ${error.message}`);
     }
