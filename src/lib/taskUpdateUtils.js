@@ -8,10 +8,9 @@
  * This is a scheduling utility function
  *
  * @param {Object} task - Task with potential start/end updates
- * @param {Object} _currentTask - Current task state (unused, kept for API compatibility)
  * @returns {number|undefined} - Calculated duration in days, or undefined if not calculable
  */
-export function calculateTaskDuration(task, _currentTask) {
+export function calculateTaskDuration(task) {
     // If duration is already explicitly set, use it
     if (task.duration !== undefined) {
         return task.duration;
@@ -37,7 +36,7 @@ export function prepareTaskUpdates(task, currentTask, toISOString) {
     if (task.start_date !== undefined) updates.start_date = task.start_date;
 
     // Calculate and add duration if it changed
-    const calculatedDuration = calculateTaskDuration(task, currentTask);
+    const calculatedDuration = calculateTaskDuration(task);
     if (calculatedDuration !== undefined && calculatedDuration !== currentTask.duration) {
         updates.duration = calculatedDuration;
     }

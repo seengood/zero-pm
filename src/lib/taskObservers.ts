@@ -64,7 +64,7 @@ export class DBObserver {
         const mergedTask = { ...currentTask, ...task };
 
         // Calculate duration using scheduling utility
-        const calculatedDuration = calculateTaskDuration(task, currentTask);
+        const calculatedDuration = calculateTaskDuration(task);
         if (calculatedDuration !== undefined) {
             mergedTask.duration = calculatedDuration;
             // Update the original task object so UIObserver gets the calculated duration
