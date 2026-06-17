@@ -78,8 +78,9 @@ export class DBObserver {
             const d = new Date(task.start as string | Date);
             const normalized = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0));
             updates.start_date = toISOString(normalized);
+        } else if (task.start_date !== undefined) {
+            updates.start_date = task.start_date as string;
         }
-        if (task.start_date !== undefined) updates.start_date = mergedTask.start_date as string;
 
         if (mergedTask.duration !== currentTask.duration) updates.duration = mergedTask.duration as number;
         if (task.parent !== undefined) updates.parent_id = task.parent ? String(task.parent) : null;

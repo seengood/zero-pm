@@ -198,9 +198,24 @@ export function useRealtimeSync({
                         }
 
                     } else if (eventType === 'UPDATE') {
+                        const linkId = String(newRow.id);
                         setLinks((prev: Link[]) => prev.map((l: Link) =>
-                            String(l.id) === String(newRow.id) ? { ...l, ...newRow } as Link : l
+                            String(l.id) === linkId ? { ...l, ...newRow } as Link : l
                         ));
+
+                        if (ganttApiRef?.current) {
+                            isSchedulerUpdateRef.current = true;
+                            ganttApiRef.current.exec('update-link', {
+                                id: linkId,
+                                link: {
+                                    source: String(newRow.source),
+                                    target: String(newRow.target),
+                                    type: newRow.type,
+                                    lag: newRow.lag ?? 0,
+                                }
+                            });
+                            isSchedulerUpdateRef.current = false;
+                        }
                     }
                 }
             )
